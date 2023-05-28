@@ -1,10 +1,19 @@
 \chapter{Introduction}
 
-\section{Motivation}
+Data is one of the most important resources for many businesses. It helps them run their business more efficiently and make better business decisions. Various data management and analytic tools have been developed to allow their users to extract important pieces of information from the vast amounts of data they collect. These tools provide simplified access to creating data pipelines for more business-oriented people without having to learn much about programming. An example of such tool may be an ETL platform where users may define their pipeline using graphical interface with multiple data sources, transformations and joins without having to write a single line of code. However, data can be very dynamic and different and it would be difficult to define every possible data transformation that the users might require. In such cases these tools often allow the usage of embedded code.
+\par
+Embedded code is a piece of code provided by a user that is safely executed in the context of the tool and can perform any desired task. It is often a function or a script. Popular examples of tools that support embedded code include the AWS Glue data integration service, Databricks platform, Snowflake data cloud or SQL Server Integration Services (SSIS).
+\par
+Data lineage is a process of mapping and visualizing data flows within a data environment. It tracks data as they flow from various sources to their destinations and their transformations with aim to help manage and develop data environments. Manta Flow is an automated data lineage platform. It can analyze complex data environments consisting of various databases, data integration and reporting tools and applications in Java, C\# or Python. However, so far it lacks the ability to analyze embedded code.
 
 \section{Goals}
 
-\section{Related work}
+The goal of this thesis is to design a data lineage analysis service for embedded code that will enable integration of data lineage graph from data analytic tools with the data lineage graph derived from the embedded code.
+\par
+One of the main tasks is to create a solid design of the service that should be easily extendable with support for new tools and their embedded code in the future. Benefits and usefulness of this design will be then demonstrated on a prototype implementation of the service for AWS Glue and the embedded code written in Python.
+\par
+Other specific tasks include a proof-of-concept implementation of a metadata extractor for AWS Glue and modifications to the existing Python scanner. A very important aspect of the service is high performance, because it will be called many times during a run of the Manta Flow analysis platform, specifically every time the analysis processes a statement that executes a piece of embedded code.
 
 \section{Outline}
 
+This thesis is split into several chapters. In introduction we briefly describe the goal of the thesis. In the second chapter we describe important aspects of MANTA Flow platform with which the service developed in this thesis is integrated. Chapter three is dedicated to the analysis of requirements and all parts of the features to be developed. Chapter four follows the analysis conclusions and discusses the design of new components and required changes in the existing components. In chapter five we take a look at interesting aspects of the implementation. In the following chapter, we present case study that demonstrates the benefits of data lineage analysis of embedded code. Finally, we conclude the thesis with a discussion of the limitations of our approach and future directions for development.

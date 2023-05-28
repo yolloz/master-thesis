@@ -1,0 +1,89 @@
+\chapter{Requirements and Analysis}
+
+In this chapter we follow up on the Manta Flow platform description and explain the problem of analysing embedded code in this context. We analyze multiple technologies that support embedded code and formulate our requirements for the solution. Then we analyze how to integrate embedded code analysis into scanners.
+
+%%----- SECTION -----%% An extended problem overview, analysis of supported/desired technologies that support embedded code.
+\section{Problem overview}
+% Why we analyze scripts
+Analysis of scripts is an integral part of many scanners supported in Manta Flow. The scripts improve the usability of the data technology as they might be the only way or enable user-defined ways to modify and work with data. Stored procedures and functions in databases enable data manipulation on top of data storage which can be especially beneficial if the database is accessed from an environment with limited database support. ETL platform scripts allow users to define their own data transformations on top of the well-defined ones. In reporting tools, the scripts provide a handy way to pre-process and define source data for data visualizations.
+\par % some scripts are easy to analyze
+In most of the cases, these scripts use a more-or-less standardized language native to the platform. Analyzing native scripts has been a standard part of scanners. It provides a lot of value as it covers a great part of data lineage. Since such language is usually an internal part of a particular data technology, its processing algorithm does not need to be shared with other components and it can utilize the internal representation of other entities unique to that data technology. Additionally, these languages do not usually have a strong expressive power, meaning that the breadth of ideas that can be represented in them is limited to the scope of the data technology and is usually  lower than that of standard programming languages.
+\par % sometimes a more complex language is used for scripts
+Analyzing code written in standard programming languages is considerably more difficult, mainly because the expressive power is that much stronger. It often contain expressions or entire algorithms not relevant for the data lineage, however that only becomes apparent after the analysis. That makes programming language scanners the most complex ones. However, this ability is useful for embedded code scripts. Certain data technologies provide an environment where these scripts can be executed, thus utilizing the potential of strong, well-defined and well-known languages.
+
+\subsection{Analyzing embedded code}
+% why we want to analyze embedded code scripts
+Adding support for embedded code scripts in a data technology might initially sound like a great idea, but like everything else, it comes with its positives and negatives. We have already mentioned most of the positives. The main negatives from software development point of view are limited debugging, testability and version control support. As already mentioned, embedded code is executed in a custom internal runtime environment of the data technology and its replica for development is not always available. For that reason there is an increased demand for systems that can bridge this gap and verify the embedded code correctness. One of the ways to check it is utilising data lineage analysis to verify that the data flow as expected.
+\par % what we need to analyze embedded code
+Supporting the analysis of embedded code in Manta Flow is not as simple as running the particular scanner with the code as its input. Since the analysis of programming languages is so complex, we want to use the existing scanners as much as possible. However, original implementations of these scanners were developed to be able to process applications written in the particular programming language. They are designed to run in standalone scenarios and their configuration mostly defines where the application can be found. We need to modify these scanners so they can be reused by other independent data technology scanners in their scenarios in a meaningful way.
+\par % how query service does it
+A similar problem has been solved by Dataflow Query Service which allows other scanners to process database queries. These database queries need to be processed by a particular database scanner, because different databases use different SQL dialects and also because Query Service results are enriched with the mapping to the actual data sources that has been analyzed by that scanner, if possible. We will inspire by its design because it solves two similar problems: providing a partial lineage graph to be used in another lineage graph and executing the analysis of one scanner in the scope of another.
+\par % how we shall do it
+Our solution shall provide an embedded code service which can be integrated and used in other scanner scenarios. It shall provide an interface to configure the input and execute the analysis of the provided embedded code and it shall provide an interface to integrate the resulting lineage graph with the lineage graph of another data technology.
+
+%%----- SECTION -----%%
+\section{Source technology analysis}
+
+Before we dive deep into the analysis, we need to examine which source technologies, whether currently supported by Manta Flow or planned, support embedded code. This overview will give us a better understanding of the range of embedded code use-cases as well as help us in choosing  candidate for a proof-of-concept implementation.
+
+\subsubsection{Hive}
+Supports defining functions in Java (wiki).
+
+\subsubsection{MSSQL}
+Supports defining procedures, functions, triggers, data types and more in C\# (docs).
+
+\subsubsection{PostgreSQL}
+By default supports only functions in C, but theoretically can use any language (docs).
+
+\subsubsection{Snowflake}
+Supports function in Java and JavaScript (docs).
+
+\subsubsection{Google BigQuery}
+Supports defining functions written in JavaScript (docs).
+
+\subsubsection{SSIS}
+Provides “script task” written in C\#, which can be used in a package to fill almost any requirement that is not met by default tasks.
+
+\subsubsection{Talend}
+Supports extending the functionalities of a Talend Job using custom Java commands (wiki).
+
+\subsubsection{Databricks}
+Databricks supports creating notebooks and jobs written in Python, R and Scala (docs).
+
+\subsubsection{StreamSets}
+StreamSets allows creating custom StreamSets processors (tutorial).
+
+\subsubsection{Informatica}
+Informatica supports creating custom components with Java (docs).
+
+\subsubsection{Azure Data Factory}
+Azure Data Factory supports creating Custom activity with own data movement or transformation logic in C\# that can be added to a pipeline (docs).
+
+\subsubsection{AWS Glue}
+In a nutshell, AWS Glue is an ETL tool that supports interactive ETL pipeline creation and then generating code for Spark in Python or Scala that executes the pipeline (docs). This code can then be further modified.
+
+\subsubsection{SAS}
+SAS supports running Python statements within a SAS session (docs).
+
+Additionally, there are multiple Python packages for interacting with SAS from Python as described here.
+
+%%----- SECTION -----%% Functional and qualitative requirements
+\section{Requirements}
+
+There are a couple of requirements that the embedded code service needs to fulfill. 
+
+\subsection{Functional requirements}
+\begin{enumerate}
+    \item Provided a code script (string/file, not important implementation detail) and configuration, the service analyzes the script and delivers lineage graph for that script
+    \item The service can merge the lineage graph with the lineage graph of parent technology when provided a node to be merged with
+    \item The service can support multiple programming languages for which there is a working scanner in MANTA Flow
+    \item The service can support multiple source technologies - technologies that support usage of user-defined embedded code
+\end{enumerate}
+
+\subsection{Qualitative (non-functional) requirements}
+\begin{enumerate}
+    \item The service should be optimized to handle tens to hundreds of scripts for a specific combination of technology-scanner in one analysis - the limitation should be the speed of the scanner, not speed of the service
+    \item Extending supported technologies should be simple - adding a new technology should only include collecting its configuration in the technology scanner and implementing this configuration in embedded code service
+    \item Maximizing code reuse - reuse the existing scanners and logic
+    \item Minimizing code duplication - no logic should be written on more than one place
+\end{enumerate}
