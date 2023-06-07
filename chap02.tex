@@ -5,7 +5,7 @@ In this chapter we follow up on the Manta Flow platform description and explain 
 %%----- SECTION -----%% An extended problem overview, analysis of supported/desired technologies that support embedded code.
 \section{Problem overview}
 % Why we analyze scripts
-Analysis of scripts is an integral part of many scanners supported in Manta Flow. The scripts improve the usability of the data technology as they might be the only way or enable user-defined ways to modify and work with data. Stored procedures and functions in databases enable data manipulation on top of data storage which can be especially beneficial if the database is accessed from an environment with limited database support. ETL platform scripts allow users to define their own data transformations on top of the well-defined ones. In reporting tools, the scripts provide a handy way to pre-process and define source data for data visualizations.
+Analysis of scripts is an integral part of many scanners supported in Manta Flow. The scripts improve the usability of the data technology as they enable user-defined ways to modify and work with data and even might be the only way to do so. Stored procedures and functions in databases enable data manipulation on top of data storage which can be especially beneficial if the database is accessed from an environment with limited database support. ETL platform scripts allow users to define their own data transformations on top of the well-defined ones. In reporting tools, the scripts provide a handy way to pre-process and define source data for data visualizations.
 \par % some scripts are easy to analyze
 In most of the cases, these scripts use a more-or-less standardized language native to the platform. Analyzing native scripts has been a standard part of scanners. It provides a lot of value as it covers a great part of data lineage. Since such language is usually an internal part of a particular data technology, its processing algorithm does not need to be shared with other components and it can utilize the internal representation of other entities unique to that data technology. Additionally, these languages do not usually have a strong expressive power, meaning that the breadth of ideas that can be represented in them is limited to the scope of the data technology and is usually  lower than that of standard programming languages.
 \par % sometimes a more complex language is used for scripts
@@ -24,16 +24,16 @@ Our solution shall provide an embedded code service which can be integrated and 
 %%----- SECTION -----%%
 \section{Source technology analysis}
 
-Before we dive deep into the analysis, we need to examine which source technologies, whether currently supported by Manta Flow or planned, support embedded code. This overview will give us a better understanding of the range of embedded code use-cases as well as help us in choosing  candidate for a proof-of-concept implementation.
+Before we dive further into the analysis, we need to examine which source technologies, whether currently supported by Manta Flow or planned, support embedded code. This overview will give us a better understanding of the range of embedded code use-cases as well as help us in choosing a candidate for a proof-of-concept implementation.
 
 \subsubsection{Hive}
-Supports defining functions in Java (wiki).
+Hive is a distributed data warehouse system that allows users to read, write and manage big volumes of data using SQL. Starting from version 0.13.0, it supports writing user-defined functions in Java which accept parameters and return a value. The function is implemented by a class that extends a Hive UDF base class. These base classes define methods that shall be implemented by the function and will be invoked in specific order on SQL query execution. This class is then supposed to be packaged in a JAR referenced by a URI from which it will be loaded into the environment~\cite{hive}.
 
-\subsubsection{MSSQL}
-Supports defining procedures, functions, triggers, data types and more in C\# (docs).
+\subsubsection{Microsoft SQL Server}
+Microsoft SQL Server enables users to implement stored procedures, triggers, user-defined types, user-defined functions (scalar and table valued), and user-defined aggregate functions using any .NET Framework language, including Microsoft Visual Basic .NET and Microsoft Visual C\#. They can be implemented by arbitrary classes and methods as long as they are properly annotated. These annotations facilitate the lookup and binding between SQL Server and embedded code. Compiled code is distributed in DLL and loaded into environment using SQL syntax~\cite{mssql}.
 
 \subsubsection{PostgreSQL}
-By default supports only functions in C, but theoretically can use any language (docs).
+By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness~\cite{postgresql}.
 
 \subsubsection{Snowflake}
 Supports function in Java and JavaScript (docs).

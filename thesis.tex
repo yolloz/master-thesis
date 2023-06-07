@@ -93,7 +93,7 @@
 \usepackage{bm}             % boldface symbols (\bm)
 \usepackage{graphicx}       % embedding of pictures
 \usepackage{fancyvrb}       % improved verbatim environment
-\usepackage{natbib}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
+%\usepackage{natbib}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
 \usepackage[nottoc]{tocbibind} % makes sure that bibliography and the lists
 			    % of figures/tables are included in the table
 			    % of contents
@@ -122,6 +122,11 @@
     stringstyle=\ttfamily,	
     identifierstyle=\ttfamily	
 }
+
+\usepackage[style=numeric,backend=biber]{biblatex}
+\setcounter{biburllcpenalty}{7000}
+\setcounter{biburlucpenalty}{8000}
+\addbibresource{bibliography.bib}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Basic information on the thesis
@@ -174,6 +179,7 @@ Abstract.
 %% Most settings are pre-set by the pdfx package.
 \hypersetup{unicode}
 \hypersetup{breaklinks=true}
+\hypersetup{hidelinks}
 
 % Definitions of macros (see description inside)
 \include{macros}
@@ -189,8 +195,7 @@ Abstract.
 %%% Each chapter is kept in a separate file
 \include{preface}
 \include{chap01}
-\include{chap02a}
-\include{chap02b}
+\include{chap02}
 \include{chap03}
 \include{chap04}
 \include{chap05}
@@ -198,18 +203,19 @@ Abstract.
 \include{epilog}
 
 %%% Bibliography
-\include{bibliography}
+%\include{bibliography}
+\printbibliography
 
 %%% Figures used in the thesis (consider if this is needed)
-\listoffigures
+%\listoffigures
 
 %%% Tables used in the thesis (consider if this is needed)
 %%% In mathematical theses, it could be better to move the list of tables to the beginning of the thesis.
-\listoftables
+%\listoftables
 
 %%% Abbreviations used in the thesis, if any, including their explanation
 %%% In mathematical theses, it could be better to move the list of abbreviations to the beginning of the thesis.
-\chapwithtoc{List of Abbreviations}
+%\chapwithtoc{List of Abbreviations}
 
 %%% Attachments to the master thesis, if any. Each attachment must be
 %%% referred to at least once from the text of the thesis. Attachments
