@@ -52,16 +52,58 @@ One of the steps is \textit{DDL dataflow scenario}. This scenario processes DDL 
 - Dataflow scenario - script analysis
 - Graph contains nodes which are either transformations or data sources, explain graph in an earlier point
 
+
+% Description of query service, how it works, similarities to what we are trying to achieve.
+%- it has a common interface
+%- usually used when the connection details are not entirely known
+%- could also be that nothing is known
+%- can deduce
+%- only resolves queries for which it constructs nodes
 %---------------------
 % SECTION
 %---------------------
-\section{Query service}
-Description of query service, how it works, similarities to what we are trying to achieve.
-- it has a common interface
-- usually used when the connection details are not entirely known
-- could also be that nothing is known
-- can deduce
-- only resolves queries for which it constructs nodes
+\section{Dataflow Query Service}
+
+Dataflow Query Service is a component that helps with processing of embedded SQL queries. It works by selecting the appropriate embedded language scanner for the provided input, executing dataflow analysis and merging the resulting sub-graph into the graph of the original data technology scanner.
+\par
+Often, data technologies such as reporting or ETL tools use SQL to define data sources. Such SQL queries are used to query data from a connected database without the need to create a dedicated table or a view. Since Manta Flow contains scanners for most common database systems, they are already able to process these queries. Dataflow Query Service groups these scanners in a unified service that can be used by other data technologies.
+\par
+One of the main benefits of this service is that it uses metadata extracted by each scanner, therefore it has access to extracted database schemas, which allows it to resolve exact columns for queries such as \texttt{SELECT * FROM TABLE\_A}. It is also useful in situations when details about the target systems are unknown or unresolved, the service has the ability to deduce columns from available information and to choose the appropriate scanner from the provided connection details.
+
+\subsubsection{Overview}
+In general, there are three pieces of information needed to analyze an SQL query:
+\begin{itemize}
+    \item Connection data - connection type, connection string, server hostname (at least connection string or server name is needed).
+    \item Default data - default database, default schema, connecting user (as applicable) in case connection data is not available or not recognized.
+    \item Query or embedded script text.
+\end{itemize}
+If the data technology scanner has all of the above information, it constructs a \texttt{Connection} object directly, otherwise it is expected to perform connection mapping by retrieving the required data from manual configuration. Connection and query text are inputs for Dataflow Query Service. Next, dictionary mapping is performed, that is, an appropriate target scanner and a persisted data dictionary is selected based on \texttt{Connection} data. The selected scanner is invoked with query text, data dictionary and defaults, which provides the result in form of a \texttt{DataflowQueryResult}. The data technology then uses this result to connect the resulting lineage to the relevant nodes in the host script and to merge the result into the main graph.
+
+\subsubsection{External connections}
+One of the main purposes of \texttt{DataflowQueryResult} is to perform connection to external nodes. The purpose of embedded queries is to provide data for further processing, therefore we would like to connect the nodes of the query objects with other nodes in the lineage, e.g., connect database columns with data fields in a report. These connection points are unknown to the query scanner and the host scanner doesn't understand the query in advance, so the result graph contains extra nodes called \textit{pin} nodes.
+\par
+Pin nodes represent an input to a node representing query parameter or an output from a query resultset column. After the query is analyzed and its graph is created, the service adds these pin nodes and connects them with appropriate edges to the result nodes. Then, the host scanner might provide a mapping from pin nodes to nodes in the host graph. The service creates new edges from pin nodes to host graph nodes (and vice versa, depending on the direction) based on the provided mapping and then contracts the pin nodes, thus effectively connecting the resultset column node or a parameter node with the host graph node. Should any pin node remain unmatched, it is filtered out in filtering task later in the scenario.
+
+\subsubsection{Architecture}
+%%% copied from Confluence, can I somehow quote this?
+\begin{figure}[ht]\centering
+\includegraphics[width=1.0\textwidth]{img/cls.png}
+\caption{A simplified class diagram of Dataflow Query Service}
+\label{fig01:QS}
+\end{figure}  
+
+
+\texttt{DataflowQueryService} is a common interface that provides methods for client scanners for analyzing SQL queries or creating hierarchical database structures. This interface is implemented by:
+\begin{itemize}
+    \item Individual database query services that contain logic for providing data flows or hierarchical database structures.
+    \item Proxy class called \texttt{DataflowQueryServiceImpl} that wraps all other individual query services. It is a classic implementation of a proxy class that chooses a specific query service based on information provided in the connection from the caller and delegates the operation.    
+\end{itemize}
+
+A simplified class diagram is depicted in figure~\ref{fig01:QS}.
+
+
+
+
 
 %---------------------
 % SECTION

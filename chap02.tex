@@ -32,40 +32,44 @@ Hive is a distributed data warehouse system that allows users to read, write and
 \subsubsection{Microsoft SQL Server}
 Microsoft SQL Server enables users to implement stored procedures, triggers, user-defined types, user-defined functions (scalar and table valued), and user-defined aggregate functions using any .NET Framework language, including Microsoft Visual Basic .NET and Microsoft Visual C\#. They can be implemented by arbitrary classes and methods as long as they are properly annotated. These annotations facilitate the lookup and binding between SQL Server and embedded code. Compiled code is distributed in DLL and loaded into environment using SQL syntax~\cite{mssql}.
 
+\subsubsection{SQL Server Integration Services (SSIS)}
+SSIS is a platform for data integration and transformation solutions. It provides graphical tools for building ETL workflows, but it is also possible to create custom objects programmatically in C\# or Visual Basic. These include tasks, connection managers, log providers, enumerators and data flow components. Implementations of custom objects are expected to extend one of the base classes provided by SSIS, to override required methods and to use proper attributes. These objects are then distributed as a compiled class library. This is a similar approach as that of MSSQL~\cite{ssis}.
+
 \subsubsection{PostgreSQL}
 By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness~\cite{postgresql}.
 
 \subsubsection{Snowflake}
-Supports function in Java and JavaScript (docs).
-
-\subsubsection{Google BigQuery}
-Supports defining functions written in JavaScript (docs).
-
-\subsubsection{SSIS}
-Provides “script task” written in C\#, which can be used in a package to fill almost any requirement that is not met by default tasks.
-
-\subsubsection{Talend}
-Supports extending the functionalities of a Talend Job using custom Java commands (wiki).
+Snowflake Data Cloud is a cloud-based data storage and analytics service. It is common to use SQL to interact with data in Snowflake and embedded code is integrated in a similar way in the form of functions and stored procedures. Apart from SQL, these can be written in multiple programming languages - Java, Scala, JavaScript or Python. Each language used has (slightly) different capabilities and requirements. In case of JavaScript, it can be used to execute SQL statements and interact with the result to provide a return value. Java, Scala and Python scripts have to contain a function or a method with the first argument of type \texttt{Session} from Snowflake's Snowpark library. This argument will be populated by Snowflake when the procedure/function is invoked and is used for interaction with Snowflake platform~\cite{snowflake}.
 
 \subsubsection{Databricks}
-Databricks supports creating notebooks and jobs written in Python, R and Scala (docs).
-
-\subsubsection{StreamSets}
-StreamSets allows creating custom StreamSets processors (tutorial).
-
-\subsubsection{Informatica}
-Informatica supports creating custom components with Java (docs).
-
-\subsubsection{Azure Data Factory}
-Azure Data Factory supports creating Custom activity with own data movement or transformation logic in C\# that can be added to a pipeline (docs).
+Databricks is a web-based data platform that combines data warehouses and data lakes with analytics build on Apache Spark and IPython-style notebooks. These notebooks are interactive computational environments. They consist of a sequential combination of cells which may contain rich text, embedded code, data visualization etc. Embedded code cells may be written in Python, Scala, SQL or R and it is possible to combine cells written in different languages in one notebook. During a notebook execution, cells written in the same language are executed in the same environment and may interact with other language environments using shared context of Apache Spark~\cite{databricks}.
 
 \subsubsection{AWS Glue}
-In a nutshell, AWS Glue is an ETL tool that supports interactive ETL pipeline creation and then generating code for Spark in Python or Scala that executes the pipeline (docs). This code can then be further modified.
+AWS Glue is an ETL tool that supports interactive ETL pipeline creation and then generating code for Apache Spark in Python or Scala that executes the pipeline. This code can then be further modified. Compared to other data technologies, AWS Glue is built entirely on embedded code. That means that each ETL job is executed entirely by a single Python/Scala script as opposed to only parts of data operations in other data technologies~\cite{awsglueintro}. 
 
-\subsubsection{SAS}
-SAS supports running Python statements within a SAS session (docs).
+\subsubsection{Other data technologies}
+Besides the data technologies already described, there are others that provide embedded code integration and are supported in Manta Flow. These follow similar principles as some that were already described before, so we will not cover them in detail. However, we list them below for completeness:
+\begin{itemize}
+    \item Talend supports extending the functionalities of a Talend Job using custom Java commands~\cite{talend}.
+    \item Google BigQuery supports defining functions written in JavaScript~\cite{bigquery}.
+    \item StreamSets allows creating custom StreamSets processors in Java~\cite{streamsets}.
+    \item Informatica supports creating custom components with Java~\cite{informatica}.
+    \item Azure Data Factory supports creating Custom activity with own data movement or transformation logic in C\# that can be added to a pipeline~\cite{adf}.
+    \item SAS supports running Python statements within a SAS session~\cite{sas}. Additionally, there are multiple Python packages for interacting with SAS from Python.
+\end{itemize}
 
-Additionally, there are multiple Python packages for interacting with SAS from Python as described here.
+\subsection{Embedded code usage philosophy}
+Based on the description of embedded code usages, we can observe a few repeating patterns. These will help us design embedded code service.
+\par
+We can see that database systems use embedded code in the form of user-defined functions or stored procedures. They can then be invoked as a part of an SQL query or an SQL script. They often return a value and may receive arguments.
+\par
+Another common use-case is to define a custom transformation or a task in an ETL workflow. The details of this use-case vary more than those in database systems but in general they implement a specific interface which functions are invoked in a pre-determined order by the data technology.
+\par
+Next observation relies to the programming language being used. Most often we can see Java or Scala, .NET languages (mainly C\# or Visual Basic) and Python. Sometimes also JavaScript is used and there is one case of R and C, but we shall ignore them as there isn't currently a language scanner implemented in Manta Flow for them.
+\par
+In compiled static-typed languages (Java and C\#), it is common to tag the classes that shall be used as embedded code and require a rigid interface, either by extending a base class or using annotations. The code is distributed in compiled form and loaded dynamically. Interaction with the data technology is facilitated through an object that is provided as a method argument or a property of a base class.
+\par
+As Python is interpreted and not compiled, it is possible to inject the embedded code into a different code to create a new script. That allows use-cases where some code is executed before embedded code which defines some variables, functions, classes etc. The embedded code may then directly read these identifiers without having to declare them, which is used to provide interface for interacting with data technology. To successfully analyze such approach, it is important to understand and simulate these assignments.
 
 %%----- SECTION -----%% Functional and qualitative requirements
 \section{Requirements}
@@ -75,8 +79,7 @@ There are a couple of requirements that the embedded code service needs to fulfi
 \subsection{Functional requirements}
 \begin{enumerate}
     \item Provided a code script (string/file, not important implementation detail) and configuration, the service analyzes the script and delivers lineage graph for that script
-    \item The service can merge the lineage graph with the lineage graph of parent technology when provided a node to be merged with
-    \item The service can support multiple programming languages for which there is a working scanner in MANTA Flow
+    \item The service can merge the lineage graph with the lineage graph of parent technology when provided a node to be merged with    
     \item The service can support multiple source technologies - technologies that support usage of user-defined embedded code
 \end{enumerate}
 
