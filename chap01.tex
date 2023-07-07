@@ -1,6 +1,6 @@
-\chapter{MANTA Flow platform}
+\chapter{Manta Flow platform}
 
-Before we get into the details of data lineage analysis service for embedded code, let us first introduce and describe MANTA Flow platform. It is the platform that the service is integrated with and influences many of the design and implementation decisions. It also provides a couple of solution examples for problems we might face that we will use for inspiration.
+Before we get into the details of data lineage analysis service for embedded code, let us first introduce and describe Manta Flow platform. It is the platform that the service is integrated with and influences many of the design and implementation decisions. It also provides a couple of solution examples for problems we might face that we will use for inspiration.
 
 %---------------------
 % SECTION
@@ -16,24 +16,26 @@ Data lineage can be obtained by hand from teams of analysts that map data enviro
 %---------------------
 % SECTION
 %---------------------
-\section{MANTA Flow overview}
+\section{Manta Flow overview}
 
-MANTA Flow is an automated data lineage platform that scans data environments to build and visualize a graph of all data flows within it. This graph enables its users to get better visibility and control of their data pipeline.
+Manta Flow is an automated data lineage platform that scans data environments to build and visualize a graph of all data flows within it. This graph enables its users to get better visibility and control of their data processes.
 \par
-Each data environment consists of a different set of databases, tools and other technologies. In order to build a data lineage graph for the entire environment, MANTA Flow uses a wide range of proprietary scanners. Each scanner can analyze data lineage for a single technology (we will use the term \textit{technology} to uniformly describe databases, ETL/reporting tools and programming languages supported by MANTA platform). These partial graphs are then combined in metadata repository to provide the output for the entire environment.
+Manta data lineage graph is a graph consisting of nodes (vertices) and edges between them. A node may represent a data source or a transformation, e.g., a database table column, a report dimension or a union of columns. Edges are directed and represent data flow from one node to the other. Each node is identified by a unique path.
 \par
-TODO: describe scenarios, CLI, why metadata is used.
+Each data environment consists of a different set of databases, tools and other technologies. In order to build a data lineage graph for the entire environment, Manta Flow uses a wide range of proprietary scanners. Each scanner can analyze data lineage for a single data technology (we will use the term \textit{data technology} to uniformly describe databases, ETL/reporting tools and programming languages supported by Manta Flow platform). These partial graphs are then combined in metadata repository to provide the output for the entire environment.
 
 %---------------------
 % SECTION
 %---------------------
 \section{Scanners}
 
-A scanner provides data lineage for a particular technology. This process consists of multiple steps and varies for each technology based on its type. The data lineage is created from metadata and scripts, so the execution of a scanner is split into two general scenarios: metadata extraction and dataflow analysis.
+A scanner provides data lineage for a particular data technology. This process consists of multiple steps and varies for each technology based on its type. The data lineage is created from metadata and scripts, so the execution of a scanner is split into two general scenarios: metadata extraction and dataflow analysis.
 
 \subsection{Metadata extraction}
 
-Metadata extraction scenario usually, as the name suggests, extracts metadata required for the dataflow analysis. Other artifacts could be extracted, too, such as scripts of any kind, configuration etc. The purpose of this scenario is to gather all resources needed for dataflow analysis and store them locally so that the analysis can be executed in \textit{offline} mode, that is, without requiring an active connection to any other system.
+Metadata extraction usually, as the name suggests, extracts metadata required for the dataflow analysis. Other artifacts could be extracted, too, such as scripts of any kind, configuration etc. The purpose of this scenario is to gather all resources needed for dataflow analysis and store them locally so that the analysis can be executed in \textit{offline} mode, that is, without requiring an active connection to any other system.
+\par
+Database scanners usually go one step further and create so called \textit{data dictionary} from the extracted metadata. Data dictionary stores schema of extracted database resources in a universal data structure that is able to capture different hierarchical structure.
 \par
 There are multiple reasons why metadata extraction is a standalone scenario. Here is a list of some that are relevant in the context of this thesis:
 \begin{itemize}
@@ -44,13 +46,7 @@ There are multiple reasons why metadata extraction is a standalone scenario. Her
 
 \subsection{Dataflow analysis}
 
-Dataflow analysis discovers dataflows in target systems using the extracted inputs. There are multiple steps in this process and the specifics vary between different technologies.
-\par
-One of the steps is \textit{DDL dataflow scenario}. This scenario processes DDL (Data Definition Language) constructs 
-- DDL dataflwo scenario
-- Dictionary mapping scenario - links to query service
-- Dataflow scenario - script analysis
-- Graph contains nodes which are either transformations or data sources, explain graph in an earlier point
+Dataflow analysis discovers data flows in target systems using the extracted inputs. The output of such analysis is a data lineage graph. There are multiple steps in this process and the specifics vary between different technologies. Sometimes it in includes translating structured metadata into nodes and edges, sometimes scripts need to be analyzed.
 
 
 % Description of query service, how it works, similarities to what we are trying to achieve.
@@ -101,22 +97,50 @@ Pin nodes represent an input to a node representing query parameter or an output
 
 A simplified class diagram is depicted in figure~\ref{fig01:QS}.
 
-
-
-
-
+% Description of language scanners, their composition, how they work
+%- no DDL/dictionaries, only scripts
+%- extraction is just a preparation of the input
+%- analysis uses worklist algorithm, intermediate dataflow generator, common output
+%- differences with database scanners
+%- 
 %---------------------
 % SECTION
 %---------------------
-\section{Language scanners}
-Description of language scanners, their composition, how they work
-- no DDL/dictionaries, only scripts
-- extraction is just a preparation of the input
-- analysis uses worklist algorithm, intermediate dataflow generator, common output
-- differences with database scanners
-- 
+\section{Programming Language Scanners}
 
-%---------------------
-% SECTION
-%---------------------
-\section{Python scanner}
+There are currently three programming language scanners: Bytecode scanner, C\# scanner and Python scanner. Their purpose is to analyze source code and discover data flows there. It proves important to also support this type of data lineage as sometimes the transformation from one data source to the other is implemented in a script or an application. Without this piece of information it is not possible to deliver a complete data lineage.
+\par
+Programming language scanners are one of the most complex scanners in Manta Flow. The scope of processes that can be expressed in a programming language is much greater and more complex compared to other data technologies. These scanners perform static analysis of the code. Execution of the code is not possible nor wanted and modification of the source code for the purposes of data lineage analysis is usually not possible either because there may be hundreds to thousands of code files included in the analysis which would be very labour intensive. Therefore, static analysis is the only feasible option.
+\par
+The goal of this static analysis is to find where data is read into the application, track it across all transformations and then find where it is written out. This proved to be a difficult task. There are several approaches for static code analysis, but none of them is aimed at data lineage, so a custom algorithm had to be developed. It uses symbolic analysis and an iterative approach along with multiple optimisations to produce limited results in a limited environment. These limitations are computing power, memory space and time. Manta Flow is expected to run in a common enterprise environment on a machine with a standard multi-core CPU, a reasonable RAM size (e.g. 32GB). Furthermore, the analysis is expected to end in the span of hours up to a few days. Due to that the output focuses on visualizing data reads and writes and flows between them and does not show internal transformations.
+
+\subsection{Dataflow analysis of source code}
+
+Let us describe how this analysis works in more detail. It will help us understand problems and solutions later in this work. All programming language scanners follow a similar workflow, but they implement each step in a little different way due to differences between the languages.
+
+\subsubsection{Source code extraction}
+
+The first step is source code extraction. Before the analysis can begin, all inputs need to be collected and prepared in the format they are expected to be in. The applications usually consist of the application code and of external libraries. When the files are collected, an extraction configuration is generated which captures the structure of the input allows the user to specify which functions or modules should be considered as analysis entry point.
+\par
+Analysis entry point is the routine that shall be considered as a starting point of a program execution. Usually, it can be the \texttt{main} method in Java or C\# or the module containing \texttt{\_\_main\_\_} block in Python, but in general it can also be any other function, method or module. This defines the starting point of the analysis and from that point function invocations and variable assignments are tracked.
+\par
+Source code extraction is a standalone step and represents metadata extraction for programming language scanners. All following steps are a part of dataflow analysis.
+
+\subsubsection{Input processing}
+
+In this initial step of dataflow analysis, the extracted inputs are read from file system and pre-processed. In Python, this involves parsing of the source code into an internal representation. There are a couple data structures that need to be created in this step which are used in the following ones.
+\par
+One of these structures is class hierarchy, which helps with the detection of invocation targets. The other, more important for the algorithm is \textit{call graph}. It captures caller-callee relationship between executables (functions, methods, modules) in the application. A caller is the executable that invokes another executable in its body, a callee is the executable that is being invoked by another executable. Call graph helps to find which other executables need to be analyzed again after the analysis of one, because its result might influence the callers and callees. This will be explained in more detail later.
+
+\subsubsection{Alias analysis}
+
+Aliases are different expressions that might reference the same value. It is important to analyze assignments in the application to resolve these aliases, because a value assigned into one of these expressions has to be propagated into all aliases. Similarly, if a value in an expression is modified, so it is in all of the aliases.
+
+\subsubsection{Symbolic analysis}
+
+This is the core of the analysis. 
+
+\subsubsection{Output transformation}
+
+\subsubsection{Generating data lineage}
+
