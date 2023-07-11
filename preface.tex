@@ -55,6 +55,20 @@ One of the main tasks is to create a solid design of the service that should be 
 \par
 Other specific tasks include a proof-of-concept implementation of a metadata extractor for AWS Glue and modifications to the existing Python scanner. A very important aspect of the service is high performance, because it will be called many times during a run of the Manta Flow analysis platform, specifically every time the analysis processes a statement that executes a piece of embedded code.
 
+\section{Glossary}
+
+Let us define a few important terms that are often used in this work.
+%% TODO
+\begin{itemize}
+    \item Data lineage
+    \item Data flow
+    \item Manta Flow
+    \item Manta scanner
+    \item We will use the term \textit{data technology} to uniformly reference databases, ETL and reporting tools. This term shall simplify naming all systems, frameworks, platforms and tools that can be used for data processing and management in the work.
+    \item Embedded code
+    \item Metadata
+\end{itemize}
+
 \section{Outline}
 
 This thesis is split into several chapters. In introduction we briefly describe the motivation and the goal of the thesis. In the second chapter we describe important aspects of MANTA Flow platform with which the service developed in this thesis is integrated. Chapter 3 is dedicated to a detailed problem analysis and we formulate our requirements there. Chapter 4 delves into design and implementation of embedded code service and changes that were made to Python scanner. In chapter 5 we take a look at the design and proof-of-concept implementation of AWS Glue scanner, which uses embedded code service for data flow analysis of embedded Python code. In chapter 6 we demonstrate the functionality of implemented features on several examples and discuss the limitations of the implementation. Finally, in conclusion we sum up what we achieved in this work and how we did it.
