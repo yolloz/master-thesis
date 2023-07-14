@@ -1,6 +1,6 @@
  \chapter{Requirements and Analysis}
 
-With the introduction to Manta Flow platform covered, we now have enough information required to understand and analyze the problem of embedded code analysis in its context. In this chapter we will analyze multiple technologies that support embedded code and formulate our requirements for the solution. Then we analyze how to integrate embedded code analysis into scanners. %% TODO rewrite after the chapter is finished
+With the introduction to Manta Flow platform covered, we now have enough information required to understand and analyze the problem of embedded code analysis in its context. In this chapter we will first present a motivational example for embedded code analysis, discuss requirements set by Manta Flow stakeholders, analyze multiple data technologies that support embedded code and finally we will analyze how to integrate embedded code analysis into scanners.
 
 \section{Purpose of embedded code analysis}
 
@@ -63,34 +63,175 @@ Each scanner produces one Manta graph for one input. When it uses a service to p
 
 On top of the definition of functionality of the solution, there are also some requirements defining its qualities.
 
-\begin{enumerate}
-    \item The service should be optimized to handle tens to hundreds of scripts for a specific combination of technology-scanner in one analysis - the limitation should be the speed of the scanner, not speed of the service
-    \item Extending supported technologies should be simple - adding a new technology should only include collecting its configuration in the technology scanner and implementing this configuration in embedded code service
-    \item Maximizing code reuse - reuse the existing scanners and logic
-    \item Minimizing code duplication - no logic should be written on more than one place
-\end{enumerate}
+\subsubsection{Optimized for scanning}
 
+\textit{The service should be optimized to handle tens to hundreds of scripts for a specific combination of technology-scanner in one analysis - the limitation should be the speed of the scanner, not the speed of the service}. In general, the service can be expected to be used multiple times by one scanner when it processes one connection, there may be several embedded code scripts. It is important to keep that in mind in its design. The service is intended to facilitate data lineage scanning and most of its execution time should be spent doing so. All other work that the service needs to do shall be reasonably optimized so that this overhead does not add up to a lot when it is called multiple times. This requirement does not intend to include specific scanner optimizations that can be made to improve the overall execution time of the service as they shall be evaluated after this solution is implemented and are outside of the scope of this work.
 
+\subsubsection{Extendibility}
 
-%%----- SECTION -----%% An extended problem overview, analysis of supported/desired technologies that support embedded code.
-\section{Embedded scripts in data technologies}
-% Why we analyze scripts
-Let us briefly 
-Execution of embedded scripts is one of the essential features of many data technologies. It moves usability of the data technology to the next level as the users are able to define custom ways to modify and work with data. It brings more possibilities to automate data manipulation processes.
-\par
-Stored procedures and functions in databases are often used to simplify data manipulation processes. Often, it takes several SQL commands to achieve a desired change. Instead of having to remember the exact chain of commands, it is easier to call a procedure that implements it. For example, in figure~\ref{fig:storedProcedure} we can see a simple stored procedure that retrieves a list of Czech employees without the need to define the query. They are also beneficial when data processing is automated, the same procedure may be called repeatedly with different parameters to process different inputs. When analyzing data lineage in a database, these scripts contain most of the observable data flows, so analyzing them is the key objective.
+\textit{Extending supported data technologies should be simple, adding a new technology should only include collecting its configuration in the technology scanner and implementing this configuration in embedded code service}. It is expected that the list of the scanners that use the service will grow in time based on customer requirements and available development capacity. The service shall be designed in a way that promotes extendibility so that the effort required to add support for new data technology is minimised. This can be done by splitting the code base to a common and a specific part so that it is obvious what needs to be added or modified in order to extend the service.
+
+\subsubsection{Code reuse}
+
+\textit{Maximize code reuse. Reuse the existing scanners and logic}. Scanners for analyzing programming language source code are very complex. We shall use the existing scanners and make only the necessary modifications to be able to analyze embedded code. Developing one scanner for analyzing both applications and embedded code is a preferred way from resource allocation perspective.
+
+\subsubsection{Code duplication}
+
+\textit{Minimize code duplication, no logic should be written on more than one place}. One of the purposes of the service is to hide repeating blocks of code that are tied with its use. Deduplication improves maintainability, because when a process needs to be changed, it only needs to be changed in one place instead of in multiple location. One of the examples of such practice is graph merging logic mention in one of the previous requirements.
+
+%%----- SECTION -----%%
+\section{Source technology analysis}
+
+Before we dive further into the analysis, we need to examine which source data technologies, whether currently supported by Manta Flow or planned, support embedded code. Limiting to these technologies is driven by business requirements, it does not make sense to support analysis of embedded code in a data technology that is not used by any current or prospective customer. This overview will give us a better understanding of the range of embedded code use-cases, their similarities and differences.
+
+\subsubsection{Hive}
+Hive is a distributed data warehouse system that allows users to read, write and manage big volumes of data using SQL. Starting from version 0.13.0, it supports writing user-defined functions in Java which accept parameters and return a value. The function is implemented by a class that extends a Hive \texttt{UDF} base class. These base classes define methods that shall be implemented by the function and will be invoked in specific order on SQL query execution. This class is then supposed to be packaged in a JAR referenced by a URI from which it will be loaded into the environment~\cite{hive}. An example of a user-defined function implementation that turns a string into lower case can be seen in figure~\ref{fig:hiveScript}.
+
 \begin{figure}[ht]
-\begin{lstlisting}[language=SQL] 
-CREATE PROCEDURE czechEmployees AS
-SELECT ID, FirstName, LastName
-FROM Employee
-WHERE CountryCode = 'CZ';
+\begin{lstlisting}[language=Java]
+package com.microsoft.examples;
+
+import org.apache.hadoop.hive.ql.exec.Description;
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.io.*;
+
+// Description of the UDF
+@Description(
+    name="ExampleUDF",
+    value="returns a lower case version of the input string.",
+    extended="select ExampleUDF(deviceplatform) from hivesampletable limit 10;"
+)
+public class ExampleUDF extends UDF {
+    // Accept a string input
+    public String evaluate(String input) {
+        // If the value is null, return a null
+        if(input == null)
+            return null;
+        // Lowercase the input string and return it
+        return input.toLowerCase();
+    }
+}
 \end{lstlisting}
-\caption{An example of SQL Server stored procedure}
-\label{fig:storedProcedure}
+\caption{An example of a Hive user-defined function written in Java~\cite{hiveudfexample}}
+\label{fig:hiveScript}
 \end{figure}
+
+\subsubsection{Microsoft SQL Server}
+Microsoft SQL Server enables users to implement stored procedures, triggers, user-defined types, user-defined functions (scalar and table valued), and user-defined aggregate functions using any .NET Framework language, including Microsoft Visual Basic .NET and Microsoft Visual C\#. They can be implemented by arbitrary classes and methods as long as they are properly annotated. These annotations facilitate the lookup and binding between SQL Server and embedded code. Compiled code is distributed in DLL and loaded into environment using SQL syntax~\cite{mssql}.
+
+\subsubsection{SQL Server Integration Services (SSIS)}
+SSIS is a platform for data integration and transformation solutions. It provides graphical tools for building ETL workflows, but it is also possible to create custom objects programmatically in C\# or Visual Basic. These include tasks, connection managers, log providers, enumerators and data flow components. Implementations of custom objects are expected to extend one of the base classes provided by SSIS, to override required methods and to use proper attributes. These objects are then distributed as a compiled class library. This is a similar approach as that of MSSQL~\cite{ssis}.
 \par
-ETL technologies often provide a standard tool box that contains different data source providers for reading and writing data and many commonly used transformations. A user may create their ETL pipeline just by connecting them in a graphical interface. However, the developers are not always able to cover all use-cases the users might need. They might want to connect to a recently released database or an already supported database, but which is secured in a non-standard way. They might want to filter or transform data based on value properties that cannot be easily expressed in SQL or in a way specific to their data. Furthermore, platforms such as AWS Glue may just provide a scalable, secure, serverless cloud environment for pipeline execution where the user is expected to provide the pipeline code (see figure~\ref{fig:embeddedScript}). In these cases, data lineage analysis of embedded scripts is necessary to capture an integral part of data flow, otherwise it may become fragmented, because a piece is missing. Sometimes it may even contain the entire data flow in the pipeline. While ETL tools are great for data processing, they are not always the best environment for code development. The main negatives from software development point of view are limited debugging, testability and version control support of embedded code. Embedded code is executed in a custom internal runtime environment of the data technology and its replica for development is not always available. For that reason there is also a demand for systems that can bridge this gap and verify the correctness of embedde scripts. One of the ways to check it is utilising data lineage analysis to verify that the data flow as expected.
+In an example shown in figure~\ref{fig:cSharpScript}, a script component is defined as a class which inherits from the \texttt{UserComponent} base class provided by SSIS. The \texttt{CreateNewOutputRows} method is overridden to implement the desired logic. Within it we can access the input column values using the \texttt{Variables} object, which provides access to the input columns. In this example, the value of the first input column (MyInputColumn) is retrieved and stored in the \texttt{inputColumnValue} variable. Next, a transformation is performed on the input column value (in this case, converting it to uppercase), and the result is stored in the \texttt{outputColumnValue} variable. Finally, a new output row is added using the \texttt{OutputBuffer} object, and the transformed value is assigned to the output column (MyOutputColumn).
+
+\begin{figure}[ht]
+\begin{lstlisting}[language=csh]
+using System;
+using System.Data;
+using Microsoft.SqlServer.Dts.Pipeline.Wrapper;
+using Microsoft.SqlServer.Dts.Runtime.Wrapper;
+
+[Microsoft.SqlServer.Dts.Pipeline.SSISScriptComponentEntryPointAttribute]
+public class ScriptMain : UserComponent
+{
+    public override void CreateNewOutputRows()
+    {
+        // Accessing input column values
+        string inputColumnValue = string.Empty;
+        if (Variables.MyInputColumn != null && Variables.MyInputColumn.Length > 0)
+        {
+            inputColumnValue = Variables.MyInputColumn[0].ToString();
+        }
+
+        // Performing some transformation on the input column value
+        string outputColumnValue = inputColumnValue.ToUpper();
+
+        // Creating new output rows
+        Output0Buffer.AddRow();
+        Output0Buffer.MyOutputColumn = outputColumnValue;
+    }
+}
+\end{lstlisting}
+\caption{An example of an SSIS script component written in C\#}
+\label{fig:cSharpScript}
+\end{figure}
+
+\subsubsection{PostgreSQL}
+By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness~\cite{postgresql}.
+
+\subsubsection{Snowflake}
+Snowflake Data Cloud is a cloud-based data storage and analytics service. It is common to use SQL to interact with data in Snowflake and embedded code is integrated in a similar way in the form of functions and stored procedures. Apart from SQL, these can be written in multiple programming languages - Java, Scala, JavaScript or Python. Each language used has (slightly) different capabilities and requirements. In case of JavaScript, it can be used to execute SQL statements and interact with the result to provide a return value. Java, Scala and Python scripts have to contain a function or a method with the first argument of type \texttt{Session} from Snowflake's Snowpark library. This argument will be populated by Snowflake when the procedure/function is invoked and is used for interaction with Snowflake platform~\cite{snowflake}.
+
+\begin{figure}[ht]
+\begin{lstlisting}[language=SQL]
+CREATE OR REPLACE PROCEDURE my_stored_procedure(param1 STRING, param2 INT)
+RETURNS STRING
+LANGUAGE PYTHON
+AS
+$$
+    import snowpark as sp
+
+    @sp.session
+    def my_snowpark_function(session):
+        # Create a DataFrame using the provided parameters
+        df = session.range(0, param2).select(sp.lit(param1).alias('Value'))
+        
+        # Perform some transformations on the DataFrame
+        transformed_df = df.withColumn('Length', sp.length(df['Value']))
+        
+        # Convert the transformed DataFrame to a Pandas DataFrame
+        pandas_df = transformed_df.toPandas()
+        
+        # Generate a summary string
+        summary = pandas_df.describe().to_string()
+        
+        return summary
+    
+    # Call the Snowpark function with the provided parameters
+    return my_snowpark_function(param1, param2)
+$$;
+\end{lstlisting}
+\caption{An example of a Snowflake stored procedure written in Python}
+\label{fig:snowflakeScript}
+\end{figure}
+
+\par
+In an example shown in figure~\ref{fig:snowflakeScript}, we are creating a stored procedure written in Python that takes two parameters, a string and an integer. The body of the stored procedure contains a Python function named \texttt{my\_snowpark\_function}. This function uses the Snowpark session decorator to establish a session with Snowflake. Within the function, we create a DataFrame and perform some transformations on it. In this example, we add a new column \textit{Length} that calculates the length of the \textit{Value} column. Next, we convert the transformed DataFrame to a Pandas DataFrame and generate a summary string from it. Finally, the stored procedure calls the \texttt{my\_snowpark\_function} with the provided parameters and returns the summary string.
+
+\subsubsection{Databricks}
+Databricks is a web-based data platform that combines data warehouses and data lakes with analytics build on Apache Spark and IPython-style notebooks. These notebooks are interactive computational environments. They consist of a sequential combination of cells which may contain rich text, embedded code, data visualization etc. Embedded code cells may be written in Python, Scala, SQL or R and it is possible to combine cells written in different languages in one notebook. During a notebook execution, cells written in the same language are executed in the same environment and may interact with other language environments using shared context of Apache Spark~\cite{databricks}.
+\par
+Let us have a notebook consisting of a Python cell (shown if figure~\ref{fig:pythonDatabricks}) and an SQL cell (shown in figure~\ref{fig:sqlDatabricks}). The Python cell sets the value of the shared variable which is then printed to the standard output. The SQL cell showcases how to access the shared variable within an SQL statement using the \$ symbol. In this example, we update the value of column1 based on the value stored in the shared variable.
+
+\begin{figure}[ht]
+\begin{lstlisting}[language=Python]
+# Define a shared variable
+dbutils.shared.notebook.set("my_shared_variable", "Hello, Databricks!")
+
+# Access the shared variable
+shared_value = dbutils.shared.notebook.get("my_shared_variable")
+print(shared_value)
+\end{lstlisting}
+\caption{Python cell of a Databricks notebook}
+\label{fig:pythonDatabricks}
+\end{figure}
+
+\begin{figure}[ht]
+\begin{lstlisting}[language=SQL]
+-- Update a table using the shared variable in SQL
+UPDATE my_table
+SET column1 = $my_shared_variable
+WHERE condition;
+\end{lstlisting}
+\caption{SQL cell of a Databricks notebook}
+\label{fig:sqlDatabricks}
+\end{figure}
+
+\subsubsection{AWS Glue}
+AWS Glue is a fully managed ETL service provided by Amazon Web Services (AWS). It simplifies the process of preparing and loading data for analytics, data warehousing, and other data-related tasks. With AWS Glue, you can create and schedule ETL jobs to automate the data transformation and loading process. It handles the execution, monitoring and orchestration of these jobs. ETL jobs leverage the underlying Apache Spark framework for distributed data processing. Each job is defined by a script written in Python or Scala. This script can be written manually or the job's workflow is built in an interactive GUI and the code is generated automatically. Compared to other data technologies, AWS Glue is built entirely on embedded code. That means that each ETL job is executed entirely by a single Python/Scala script as opposed to only parts of data operations in other data technologies~\cite{awsglueintro}.
+\par
+The example in figure~\ref{fig:embeddedScript} show code of an ETL job that performs data processing and transformation, combining data from different sources and storing the result in an S3 bucket. Firstly, we read data from a specified database and tables into dynamic frames on which we perform data transformations. The \texttt{products} frame is modified by dropping certain fields and renaming one. Multiple joins are applied to the frames, first between \texttt{products} and \texttt{purchases}, and then between the resulting frame and \texttt{suppliers}. The resulting frame is written to an S3 location in the parquet format.
+
 \begin{figure}[ht]
 \begin{lstlisting}[language=Python]
 import sys
@@ -121,56 +262,6 @@ glueContext.write_dynamic_frame.from_options(frame = result, connection_type = "
 \label{fig:embeddedScript}
 \end{figure}
 
-\subsection{Embedded scripts in Manta Flow}
-
-The main goal of this work is to enhance Manta Flow with the ability to process embedded scripts written in a programming language
-Automated data flow analysis of embedded scripts in Manta Flow is not an easy task. Because the script is analyzed outside of the execution environment, it cannot be executed and the particular scanner has to perform static code analysis. Such algorithm not only has to be able to parse the code, but it also has to \textit{understand} it to be able to detect when and from where data is loaded or written to and track it as it is propagated and transformed. Take the code in figure~\ref{fig:sqlVariable} for example, the scanner has to \textit{understand} that a value in column \texttt{cust\_id} of \texttt{customers} table is assigned to the variable \texttt{@id}, remember this data flow and then correctly conclude that this value is written to the \texttt{customer\_id} column of the \texttt{orders} table. It is, of course, only one simple example of many, the problem gets more complicated when complex joins, user-defined functions which are defined outside a script, etc. get involved. The bottom-line is that it is desired to implement the analysis of one language's code in exactly one scanner so the complexity remains maintainable.
-
-\begin{figure}[ht]
-\begin{lstlisting}[language=SQL]
-SELECT @id := cust_id FROM customers WHERE cust_id='customer name';
-INSERT INTO orders (product_id, customer_id, quantity) VALUES (123, @id, 1);
-\end{lstlisting}
-\caption{Data propagation through a variable in MySQL}
-\label{fig:sqlVariable}
-\end{figure}
-
-\par
-
-
-
-Supporting the analysis of embedded scripts in Manta Flow is not always as simple as running the particular scanner with the code as its input. Each input is also tightly dependent on the environment where it is executed. Since the analysis of programming languages is so complex, we want to use the existing scanners as much as possible. However, original implementations of these scanners were developed to be able to process applications written in the particular programming language. They are designed to run in standalone scenarios and their configuration mostly defines where the application can be found. We need to modify these scanners so they can be reused by other independent data technology scanners in their scenarios in a meaningful way.
-\par % how query service does it
-A similar problem has been solved by Dataflow Query Service which allows other scanners to process database queries. These database queries need to be processed by a particular database scanner, because different databases use different SQL dialects and also because Query Service results are enriched with the mapping to the actual data sources that has been analyzed by that scanner, if possible. We will inspire by its design because it solves two similar problems: providing a partial lineage graph to be used in another lineage graph and executing the analysis of one scanner in the scope of another.
-\par % how we shall do it
-Our solution shall provide an embedded code service which can be integrated and used in other scanner scenarios. It shall provide an interface to configure the input and execute the analysis of the provided embedded code and it shall provide an interface to integrate the resulting lineage graph with the lineage graph of another data technology.
-
-%%----- SECTION -----%%
-\section{Source technology analysis}
-
-Before we dive further into the analysis, we need to examine which source technologies, whether currently supported by Manta Flow or planned, support embedded code. This overview will give us a better understanding of the range of embedded code use-cases as well as help us in choosing a candidate for a proof-of-concept implementation.
-
-\subsubsection{Hive}
-Hive is a distributed data warehouse system that allows users to read, write and manage big volumes of data using SQL. Starting from version 0.13.0, it supports writing user-defined functions in Java which accept parameters and return a value. The function is implemented by a class that extends a Hive UDF base class. These base classes define methods that shall be implemented by the function and will be invoked in specific order on SQL query execution. This class is then supposed to be packaged in a JAR referenced by a URI from which it will be loaded into the environment~\cite{hive}.
-
-\subsubsection{Microsoft SQL Server}
-Microsoft SQL Server enables users to implement stored procedures, triggers, user-defined types, user-defined functions (scalar and table valued), and user-defined aggregate functions using any .NET Framework language, including Microsoft Visual Basic .NET and Microsoft Visual C\#. They can be implemented by arbitrary classes and methods as long as they are properly annotated. These annotations facilitate the lookup and binding between SQL Server and embedded code. Compiled code is distributed in DLL and loaded into environment using SQL syntax~\cite{mssql}.
-
-\subsubsection{SQL Server Integration Services (SSIS)}
-SSIS is a platform for data integration and transformation solutions. It provides graphical tools for building ETL workflows, but it is also possible to create custom objects programmatically in C\# or Visual Basic. These include tasks, connection managers, log providers, enumerators and data flow components. Implementations of custom objects are expected to extend one of the base classes provided by SSIS, to override required methods and to use proper attributes. These objects are then distributed as a compiled class library. This is a similar approach as that of MSSQL~\cite{ssis}.
-
-\subsubsection{PostgreSQL}
-By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness~\cite{postgresql}.
-
-\subsubsection{Snowflake}
-Snowflake Data Cloud is a cloud-based data storage and analytics service. It is common to use SQL to interact with data in Snowflake and embedded code is integrated in a similar way in the form of functions and stored procedures. Apart from SQL, these can be written in multiple programming languages - Java, Scala, JavaScript or Python. Each language used has (slightly) different capabilities and requirements. In case of JavaScript, it can be used to execute SQL statements and interact with the result to provide a return value. Java, Scala and Python scripts have to contain a function or a method with the first argument of type \texttt{Session} from Snowflake's Snowpark library. This argument will be populated by Snowflake when the procedure/function is invoked and is used for interaction with Snowflake platform~\cite{snowflake}.
-
-\subsubsection{Databricks}
-Databricks is a web-based data platform that combines data warehouses and data lakes with analytics build on Apache Spark and IPython-style notebooks. These notebooks are interactive computational environments. They consist of a sequential combination of cells which may contain rich text, embedded code, data visualization etc. Embedded code cells may be written in Python, Scala, SQL or R and it is possible to combine cells written in different languages in one notebook. During a notebook execution, cells written in the same language are executed in the same environment and may interact with other language environments using shared context of Apache Spark~\cite{databricks}.
-
-\subsubsection{AWS Glue}
-AWS Glue is an ETL tool that supports interactive ETL pipeline creation and then generating code for Apache Spark in Python or Scala that executes the pipeline. This code can then be further modified. Compared to other data technologies, AWS Glue is built entirely on embedded code. That means that each ETL job is executed entirely by a single Python/Scala script as opposed to only parts of data operations in other data technologies~\cite{awsglueintro}. 
-
 \subsubsection{Other data technologies}
 Besides the data technologies already described, there are others that provide embedded code integration and are supported in Manta Flow. These follow similar principles as some that were already described before, so we will not cover them in detail. However, we list them below for completeness:
 \begin{itemize}
@@ -195,4 +286,6 @@ In compiled static-typed languages (Java and C\#), it is common to tag the class
 \par
 As Python is interpreted and not compiled, it is possible to inject the embedded code into a different code to create a new script. That allows use-cases where some code is executed before embedded code which defines some variables, functions, classes etc. The embedded code may then directly read these identifiers without having to declare them, which is used to provide interface for interacting with data technology. To successfully analyze such approach, it is important to understand and simulate these assignments.
 
-%%----- SECTION -----%% Functional and qualitative requirements
+
+
+

@@ -200,9 +200,9 @@ With all the preparatory steps done, we now have everything ready for \textit{sy
 To find the data flows, the algorithm analyzes executable invocations. An invocation consists of the body of an executable (instructions) and arguments. The arguments contain the flows for function parameters that the function was invoked with and in Python also flows of global variables, which can be also accessed. If the same function is called with two different sets of arguments, they are two different invocations.
 \par
 The invocations are analyzed in an order defined by a worklist (an enhanced queue) in a loop until it is empty. At first, it contains the entry point. At the beginning of each loop, the first invocation is removed from the worklist and analyzed. When an invocation is analyzed, a so-called \textit{executable summary} is computed. This summary contains flows of expressions at each instruction in the executable. Consider this part of the example code:
-\begin{lstlisting}[language=Python] 
+\begin{verbatim}
 customer_data = get_customer_data()
-\end{lstlisting}
+\end{verbatim}
 Firstly, the flow of the return value of \texttt{get\_customer\_data()} is resolved and assigned to its corresponding expression. Next, this flow is looked up and assigned to the flow of the expression \texttt{customer\_data} etc. When the processing of an invocation is finished, a complete executable summary is stored in a cache.
 \par
 To keep the algorithm going, we need to add new invocations into the worklist. When the analysis finds an instruction representing an invocation, it is not processed recursively. After all, the point of using a worklist is to avoid recursion which can cause stack overflow very easily. Instead, it has to be looked up. At this point, it matters whether the invoked function comes from application code or from a library. For application functions, the summary of the invocation is looked up in the cache. If it has been already computed, it is used to resolve the flow of the return value. If not, it is added to the worklist and will be computed later.
