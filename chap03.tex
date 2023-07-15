@@ -39,8 +39,29 @@ The orchestration process would generally be different for each technology and p
 
 \subsection{Result}
 
-When the analysis of embedded code is finished, the service shall return a result to source technology scanner. The result is a graph that needs to be merged with another graph and may contain pin nodes that need to be connected. Rather than returning the unfinished graph, we shall return an object that wraps it and provides an interface for connecting pin nodes and merging. The justification is simple, this graph is not always in a valid state so it should be obstructed from the plain view and modification.
+When the analysis of embedded code is finished, the service shall return a result to source technology scanner. The result is a graph that needs to be merged with another graph and may contain pin nodes that need to be connected. Rather than returning the unfinished graph, we shall return an object that wraps it and provides an interface for connecting pin nodes and merging. The justification is simple, this graph is not always in a valid state so it should be hidden from plain view and unwanted modifications.
+
+\subsubsection{Pin node mapping}
+First thing to be done with the result is pin node mapping. Pin nodes can be found in the graph by enumerating its nodes and filtering those with pin node type. Each pin node can be distinguished from others by its name.
 \par
+The source technology scanner performing the mapping should receive the information about created pin nodes from an \textit{Insight}. A mapping simply contains a pin node and a node to be mapped to. We might want to connect pin nodes by iterating over them and for each one we create a mapping or we might want to iterate over records in an \textit{Insight}, retrieve the pin node by its name and then create the mapping. Each approach is better in different situations, so the result shall support both operations.
+\par
+When a mapping is created, it is important to specify whether the pin node is an input node or an output node (relatively to embedded code). The direction decides the orientation of the edge when a pin node is merged to the source technology graph.
+\par
+During the mapping process, the mapping information is stored and merging is deferred until the end so that the graph remains unchanged throughout the process.
+
+\subsubsection{Merging}
+After all pin nodes are mapped, a merge operation can start. This operation can be done only once, because it changes the source technology graph. If it was done multiple times, the graph could be damaged.
+\begin{figure}[ht]\centering
+\includegraphics[width=1.0\textwidth]{img/contraction.png}
+\caption{The process of merging and contracting a pin node}
+\label{fig:contraction}
+\end{figure}   
+\par
+The merging process starts by adding the pin node into the source technology graph along with an edge that connects it to the mapped node. After that, pin node needs to be contracted and removed. That is done by first enumerating its incoming and outgoing edges and adding new edges starting at the starting points of incoming edges and ending at the end points of outgoing edges. After that, pin node and all edges associated with it are removed. A process of contracting a node can be seen in Figure~\ref{fig:contraction}.
+\par
+When an edge is added to a graph, both its nodes are also added if they were not already present in the graph. After all pin nodes are added to the source technology graph and contracted, all remaining nodes and edges are added and the merging is complete. 
+
 
 
 

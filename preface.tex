@@ -30,7 +30,7 @@ To illustrate this with an example, let us have an ETL tool which contains a pip
     \item a database XYZ graph which represents table A and its columns,
     \item a reporting tool graph that contains data read from table A into a report. 
 \end{itemize}
-These graphs would be visualized as one unified data lineage, as seen in figure~\ref{figGraphExample}.
+These graphs would be visualized as one unified data lineage, as seen in Figure~\ref{figGraphExample}.
 
 \section{Embedded code}
 Various data processing, management and analytic tools have been developed to allow their users to extract important pieces of information from the vast amounts of data they collect. These tools often provide graphical interface for creating data pipelines consisting of commonly used data sources and transformations. Using such tool opens data pipeline management to a wider, less technically proficient audience, so business-oriented employees can be involved more closely in the development. An example of such tool may be AWS Glue platform where users may define their ETL pipeline using graphical interface with multiple data sources, transformations and joins without having to write a single line of code. However, data can be very dynamic and different and it would be difficult to define every possible data transformation that the users might require. In such cases these tools often allow extending the pipeline with embedded code.

@@ -7,7 +7,7 @@ Before we get into the details of data lineage analysis service for embedded cod
 %---------------------
 \section{Manta Flow overview}
 
-Manta Flow is an automated data lineage platform that scans data environments to build and visualize a graph of all data flows (as seen in figure~\ref{fig01:lineage}) within it. This graph enables its users to get better visibility and control of their data processes. The emphasis is on \textit{automation}, Manta Flow requires little intervention apart from configuration and can perform data lineage analysis in a matter of hours to days, compared to manual analysis which can take weeks to months, so the visualization provides up-to-date information.
+Manta Flow is an automated data lineage platform that scans data environments to build and visualize a graph of all data flows (as seen in Figure~\ref{fig01:lineage}) within it. This graph enables its users to get better visibility and control of their data processes. The emphasis is on \textit{automation}, Manta Flow requires little intervention apart from configuration and can perform data lineage analysis in a matter of hours to days, compared to manual analysis which can take weeks to months, so the visualization provides up-to-date information.
 \par
 Data lineage analysis is based on the analysis of metadata and scripts extracted from the connected systems. Metadata contain information about schema and structure of internal entities and their relations. Scripts contain data processing and transformation logic on these entities. It is not possible to construct complete data lineage from just one of these sources.
 \par
@@ -35,7 +35,7 @@ The common output of all scanners is a data structure called \textit{Manta graph
 \par
 Nodes have a layered structure to allow representation of a logical hierarchy. This is expressed in a child-parent relationship between nodes, e.g., a server node could be a parent to several database nodes, each database node would have table node children and in each table there would be column node children. However, only the nodes on the lowest level can be connected with data flow edges. This hierarchy is important for visualization to simplify grouping of related nodes such as all columns of a table and to define node paths.
 \par
-Each node is identified by a unique path derived from its name and names of its parent nodes, which enables merging the same entity and associated data flows in different graphs. For example, if an MSSQL database table is a source of a view in that same database and is also used in a report in SSRS reporting tool, it will be created with the same identification in MSSQL scanner output and in SSRS scanner output. Manta Flow Server is then able to merge these outputs to visualize one node with two distinct data flows. This can be seen in figure~\ref{fig01:lineage} where SSRS nodes are framed in a different shade of green than those belonging to MSSQL.
+Each node is identified by a unique path derived from its name and names of its parent nodes, which enables merging the same entity and associated data flows in different graphs. For example, if an MSSQL database table is a source of a view in that same database and is also used in a report in SSRS reporting tool, it will be created with the same identification in MSSQL scanner output and in SSRS scanner output. Manta Flow Server is then able to merge these outputs to visualize one node with two distinct data flows. This can be seen in Figure~\ref{fig01:lineage} where SSRS nodes are framed in a different shade of green than those belonging to MSSQL.
 
 %---------------------
 % SECTION
@@ -94,7 +94,7 @@ If the data technology scanner has all of the above information, it constructs a
 \subsubsection{External connections}
 One of the main purposes of \texttt{DataflowQueryResult} is to perform connection to external nodes. The purpose of embedded queries is to provide data for further processing, therefore we would like to connect the nodes of the query objects with other nodes in the lineage, e.g., connect database columns with data fields in a report. These connection points are unknown to the query scanner and the host scanner doesn't understand the query in advance, so the result graph contains extra nodes called \textit{pin} nodes.
 \par
-Pin nodes represent an input to a node representing query parameter or an output from a query resultset column. After the query is analyzed and its graph is created, the service adds these pin nodes and connects them with appropriate edges to the result nodes. Then, the host scanner might provide a mapping from pin nodes to nodes in the host graph. The service creates new edges from pin nodes to host graph nodes (and vice versa, depending on the direction) based on the provided mapping and then contracts the pin nodes, thus effectively connecting the resultset column node or a parameter node with the host graph node. Should any pin node remain unmatched, it is filtered out in filtering task later in the scenario. This process is depicted in figure~\ref{fig:pinNodes}.
+Pin nodes represent an input to a node representing query parameter or an output from a query resultset column. After the query is analyzed and its graph is created, the service adds these pin nodes and connects them with appropriate edges to the result nodes. Then, the host scanner might provide a mapping from pin nodes to nodes in the host graph. The service creates new edges from pin nodes to host graph nodes (and vice versa, depending on the direction) based on the provided mapping and then contracts the pin nodes, thus effectively connecting the resultset column node or a parameter node with the host graph node. Should any pin node remain unmatched, it is filtered out in filtering task later in the scenario. This process is depicted in Figure~\ref{fig:pinNodes}.
 
 \begin{figure}[ht]\centering
 \includegraphics[width=1.0\textwidth]{img/pin_nodes.png}
@@ -110,7 +110,7 @@ Pin nodes represent an input to a node representing query parameter or an output
     \item Proxy class called \texttt{DataflowQueryServiceImpl} that wraps all other individual query services. It is a classic implementation of a proxy class that chooses a specific query service based on information provided in the connection from the caller and delegates the operation.    
 \end{itemize}
 
-A simplified class diagram is depicted in figure~\ref{fig01:QS}.
+A simplified class diagram is depicted in Figure~\ref{fig01:QS}.
 
 \begin{figure}[ht]\centering
 \includegraphics[width=1.0\textwidth]{img/cls.png}
@@ -141,7 +141,7 @@ The goal of this static analysis is to find where data is read into the applicat
 
 \subsection{Dataflow analysis of source code}
 
-Let us describe how this analysis works in more detail. It will help us understand problems and solutions later in this work. All programming language scanners follow a similar workflow, but they implement each step in a little different way due to differences between the languages. Let us focus more on the details of Python scanner as it will be more relevant for the rest of this work. The structure of programming language scanners is also a bit different from other scanners, the core of the data flow analysis is performed by the Reader component as opposed to Dataflow Generator in other scanners. We shall explain why later in this section when more context is provided. A workflow diagram can be seen in figure~\ref{fig02:pythonWorkflow}.
+Let us describe how this analysis works in more detail. It will help us understand problems and solutions later in this work. All programming language scanners follow a similar workflow, but they implement each step in a little different way due to differences between the languages. Let us focus more on the details of Python scanner as it will be more relevant for the rest of this work. The structure of programming language scanners is also a bit different from other scanners, the core of the data flow analysis is performed by the Reader component as opposed to Dataflow Generator in other scanners. We shall explain why later in this section when more context is provided. A workflow diagram can be seen in Figure~\ref{fig02:pythonWorkflow}.
 
 \begin{figure}[ht]\centering
 \includegraphics[width=1.0\textwidth]{img/python_workflow.PNG}
@@ -149,7 +149,7 @@ Let us describe how this analysis works in more detail. It will help us understa
 \label{fig02:pythonWorkflow}
 \end{figure}  
 
-Let us use the following simple Python program called \texttt{json\_to\_csv.py} shown in figure~\ref{fig:pythonSample} as an example. The program converts a JSON file to CSV format. Firstly, a JSON file is read using a built-in Python library \texttt{json}. Then, using a popular Python library for data manipulation called \texttt{pandas}, the contents of a JSON file are converted to a data frame, which is an abstraction of tabular data. Finally, the data frame is written to a file in CSV format. Clearly, the data flow in this program is pointing from the JSON file to the CSV file. Let us now take a look what happens inside the Python scanner with this program.
+Let us use the following simple Python program called \texttt{json\_to\_csv.py} shown in Figure~\ref{fig:pythonSample} as an example. The program converts a JSON file to CSV format. Firstly, a JSON file is read using a built-in Python library \texttt{json}. Then, using a popular Python library for data manipulation called \texttt{pandas}, the contents of a JSON file are converted to a data frame, which is an abstraction of tabular data. Finally, the data frame is written to a file in CSV format. Clearly, the data flow in this program is pointing from the JSON file to the CSV file. Let us now take a look what happens inside the Python scanner with this program.
 
 \begin{figure}[ht]
 \begin{lstlisting}[language=Python] 
@@ -235,4 +235,4 @@ The result of the transformation is called a \textit{connector output}. It is no
 \label{fig:lineage}
 \end{figure}  
 
-Finally, the last step of the analysis is to generate a Manta graph from a connector output. This happens in Dataflow Generator component and as already mentioned, there is one common generator for all programming language scanners. All analytic work has already been done, so the generator simply reads the connector output and creates corresponding nodes in the Manta graph. Should there be any SQL queries, it uses Dataflow Query Service to resolve them. The graph that is created is considered the output of the scanner. A visualization of the data lineage graph created from the \texttt{json\_to\_csv.py} example can be seen in figure~\ref{fig:lineage}.
+Finally, the last step of the analysis is to generate a Manta graph from a connector output. This happens in Dataflow Generator component and as already mentioned, there is one common generator for all programming language scanners. All analytic work has already been done, so the generator simply reads the connector output and creates corresponding nodes in the Manta graph. Should there be any SQL queries, it uses Dataflow Query Service to resolve them. The graph that is created is considered the output of the scanner. A visualization of the data lineage graph created from the \texttt{json\_to\_csv.py} example can be seen in Figure~\ref{fig:lineage}.
