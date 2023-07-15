@@ -74,6 +74,7 @@ Database scanners also analyze queries and scripts present in databases. There a
 % SECTION
 %---------------------
 \section{Dataflow Query Service}
+\label{section:DQS}
 
 Sometimes, a scanner for one data technology runs into a database query that defines a data source. It is a common feature of many reporting and analytic tools. It would not make sense to include a support for each SQL dialect in all such scanners, firstly because it is quite complicated, but also because there are scanners that can process it already. Furthermore, there might not be enough information in the context of this scanner to resolve such query. Take for example a query \texttt{SELECT * FROM TABLE\_A}. The scanner doesn't know the columns present in \texttt{TABLE\_A}, so it is not possible to provide an accurate representation. 
 \par
@@ -93,16 +94,15 @@ If the data technology scanner has all of the above information, it constructs a
 \subsubsection{External connections}
 One of the main purposes of \texttt{DataflowQueryResult} is to perform connection to external nodes. The purpose of embedded queries is to provide data for further processing, therefore we would like to connect the nodes of the query objects with other nodes in the lineage, e.g., connect database columns with data fields in a report. These connection points are unknown to the query scanner and the host scanner doesn't understand the query in advance, so the result graph contains extra nodes called \textit{pin} nodes.
 \par
-Pin nodes represent an input to a node representing query parameter or an output from a query resultset column. After the query is analyzed and its graph is created, the service adds these pin nodes and connects them with appropriate edges to the result nodes. Then, the host scanner might provide a mapping from pin nodes to nodes in the host graph. The service creates new edges from pin nodes to host graph nodes (and vice versa, depending on the direction) based on the provided mapping and then contracts the pin nodes, thus effectively connecting the resultset column node or a parameter node with the host graph node. Should any pin node remain unmatched, it is filtered out in filtering task later in the scenario.
+Pin nodes represent an input to a node representing query parameter or an output from a query resultset column. After the query is analyzed and its graph is created, the service adds these pin nodes and connects them with appropriate edges to the result nodes. Then, the host scanner might provide a mapping from pin nodes to nodes in the host graph. The service creates new edges from pin nodes to host graph nodes (and vice versa, depending on the direction) based on the provided mapping and then contracts the pin nodes, thus effectively connecting the resultset column node or a parameter node with the host graph node. Should any pin node remain unmatched, it is filtered out in filtering task later in the scenario. This process is depicted in figure~\ref{fig:pinNodes}.
 
-\subsubsection{Architecture}
-%%% copied from Confluence, can I somehow quote this?
 \begin{figure}[ht]\centering
-\includegraphics[width=1.0\textwidth]{img/cls.png}
-\caption{A simplified class diagram of Dataflow Query Service}
-\label{fig01:QS}
+\includegraphics[width=1.0\textwidth]{img/pin_nodes.png}
+\caption{A diagram of the pin node mapping process}
+\label{fig:pinNodes}
 \end{figure}  
 
+\subsubsection{Architecture}
 
 \texttt{DataflowQueryService} is a common interface that provides methods for client scanners for analyzing SQL queries or creating hierarchical database structures. This interface is implemented by:
 \begin{itemize}
@@ -111,6 +111,12 @@ Pin nodes represent an input to a node representing query parameter or an output
 \end{itemize}
 
 A simplified class diagram is depicted in figure~\ref{fig01:QS}.
+
+\begin{figure}[ht]\centering
+\includegraphics[width=1.0\textwidth]{img/cls.png}
+\caption{A simplified class diagram of Dataflow Query Service}
+\label{fig01:QS}
+\end{figure}  
 
 % Description of language scanners, their composition, how they work
 %- no DDL/dictionaries, only scripts

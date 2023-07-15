@@ -1,90 +1,57 @@
-\chapter{Embedded Code Service and Python Scanner}
+\chapter{Design And Implemetation Of Embedded Code Service}
 
-In this chapter we follow up on the Manta Flow platform description and explain the problem of analysing embedded code in this context. We analyze multiple technologies that support embedded code and formulate our requirements for the solution. Then we analyze how to integrate embedded code analysis into scanners and finally, we analyze AWS Glue as a proof-of-concept technology for embedded code analysis.
+Based on the analysis conducted in the previous chapter we now have a clear understanding what Embedded Code Service is, what is its purpose and how it is going to solve outlined problems. In this chapter, we are going to introduce and reason about its design. We are also going to explain what changes need to be done to programming language scanners in order for them to be integrated with Embedded Code Service. At the end of the chapter we will present interesting parts of the implementation based on this design.
 
-Embedded code service is responsible for analyzing data lineage in code embedded in various technologies and merging its lineage graph to that of the source technology. Similarly to query service, it enables merging of data lineage of two cooperating technologies into one graph utilizing the existence of separate scanners for each of the respective technologies. It provides a way to compose a more complete lineage for the given technology without the need to implement the specifics of analyzing the embedded code within the source technology scanner.
+\section{Embedded Code Service design}
 
-%%----- SECTION -----%% 
-\section{Embedded code service analysis}
-
-There are multiple problems that embedded code service needs to address. Here is the list for an overview:
+Firstly, let us summarize the steps that Embedded Code Service has to execute, because it might not be clearly obvious from previous chapters. The goal of the service is to perform data flow analysis of embedded code using one of the already existing scanners to create a data lineage graph of that code which will then be merged with the graph produced by source technology scanner. A programming language scanner works in three steps: extraction of the input, data flow analysis and generating Manta graph. Embedded Code Service needs to perform input orchestration using the provided configuration, then launch all three stages of a scanner and after that help with merging the graphs. The workflow looks as follows (active components are written in parentheses):
 \begin{enumerate}
-    \item Multiple supported languages (Python, Java, C\#)
-    \item Merging embedded code graph to the enclosing technology graph
-    \item Specifying runtime configuration - available libraries etc.
-    \item Running the scanner for the embedded code without Manta Flow hooks
-    \item Configuration of individual embedded code service components
-    \item Input for Bytecode and C\# - embedded code is in plain text but these scanners expect compiled intermediate code on input, C\# can somehow compile it but Java can’t
-    \item Caching
+    \item Input orchestration (Embedded Code Service)
+    \item Input extraction (scanner's Extractor)
+    \item Data flow analysis (scanner's Reader)
+    \item Generating lineage graph (Intermediate Dataflow Generator)
+    \item Merging graphs (source technology scanner with the help of Embedded Code Service)
 \end{enumerate}
-Let’s now take a closer look at each of the problems.
 
-\subsection{Multiple supported languages}
-Embedded code service should be a universal service for all programming languages supported in MANTA Flow. A common service enables code reuse as multiple parts of the problem will be solved in a similar way regardless of used programming language and technology. While some approaches may be common on a programming language level (e.g., processing of Java code will include similar steps across all technologies), we can also find similarities between the technologies too (e.g., procedures written in embedded code in databases regardless of the programming language used). Additionally, some steps are common for any combination of technology and programming language, such as merging the graphs of embedded code and parent technology.
-\par
-Providing a common service for all languages brings in additional complexity that needs to be addressed. Each technology and programming language has its specifics, so the service needs to be highly configurable to facilitate these differences. We can find inspiration in the already mentioned query service design. This service uses dialect specification to deal with different dialects of data query languages. 
-\par
-In our case, dialects are not a problem, in general, Bytecode is always Bytecode, Python is always Python. One could argue that there is Scala and Java or their different versions, Python and IPython etc. However, dealing with these dialects is solved by the language scanners themselves and does not need to be covered any further than providing the information about which language (and its version) is used.
-\par
-A more important problem for programming languages is “orchestration”. All current programing languages use some form of import mechanism where the developers can import additional libraries and frameworks. This is also the case for the embedded code, often there is a mechanism of adding external libraries to be imported by the embedded code. This is, however, not as straight-forward as in applications written entirely in that programming language. Some technologies perform additional orchestration to run the embedded code correctly, such as injecting it in a well-defined class, so the envelope does not have to be written by the user every time, adding the desired imports and only then the code is run on the execution engine used by that technology. This process has to be mimicked by embedded code service before analyzing the code by the language scanner to provide a functional code that can be analyzed.
-\par
-The orchestration would generally be different for each technology and programming language with repeating patterns, so the interface of the embedded code service should allow specification of these process individually with the ability to reuse the already implemented patterns.
+\subsection{Multiple programming languages}
 
-\subsection{Merging embedded code graph to the enclosing technology graph}
-Sometimes, embedded code can be connected with the enclosing technology to parameterize the execution of the embedded code (e.g., passing filtering arguments to a database procedure). Often this is done by reading a specific variable or property provided by the enclosing technology. These values could be a part of the data lineage and it would be great if they could be propagated towards the lineage of the embedded code and merged together so they create a single lineage graph. 
+The first decision we have to make is whether we want to implement one universal service that can analyze embedded code written in any programming language or whether we want to have specific implementations for each programming language. This decision will greatly influence how the interface of the service is designed. Comparing the two approaches, we chose specific implementations as a more suitable solution.
 \par
-Merging these graphs is not a trivial task, so it would be best if it was handled by the embedded code service, so developers of other scanners are shielded from its specifics. While the developer knows what they want to connect, they don’t need to know how to connect it, they just use the embedded code service interface. This is similar to what query service offers. This interface can be very similar to that of query service and even some code base could be reused (it requires a further, deeper analysis). 
+An initial idea seems to be a universal service, because that is how Dataflow Query Service is implemented. A common service promotes code reuse as multiple parts of the problem will be solved in a similar way regardless of used programming language and data technology, such as merging the graphs of embedded code and source technology. We can also find similarities between the data technologies (e.g., stored procedures written in embedded code in databases) regardless of the programming language used. One service also means that only one component will need to be maintained. The downside of having one service is that its interface needs to be universal, so if one programming language has a different requirement or requires a specific modification, these changes will have to be reflected for other programming languages as well.
+\par
+One could argue that another benefit of one service is that we have access to the analysis of any embedded code we may find, but that turns out not to be as beneficial as it may sound. In reality, the language of embedded code is always know, so it is easy to use a specific service to analyze it. Having a universal service has been crucial in case of Dataflow Query Service, because it supports recognition of the SQL dialect used in the query, but in case of Embedded Code Service such feature is not needed. When implementing specific services, we can still reach similar code reuse by grouping common logic in base classes, which makes one less argument in favor of a common service. An important advantage that multiple services provide is that they not only allow the interfaces to be tailored to the needs of the programming language scanner, but they also allow different development pace for each service. The fact is that a service for Python is much more preferred by the stakeholders because of its potential and thus a lot more resources are dedicated to working on it. The last argument carries great significance due to its profound impact on the development process, so we decided to implement multiple services, each dedicated for one programming language.
+\par
+Figure~\ref{fig:ECSbasedesign} shows how a specific service processes embedded code as well as components that is utilizes. The diagram is generic for any programming language.
 
-\subsection{Specifying runtime configuration}
-As we already mentioned, often the runtime configuration of embedded code can be configured in the enclosing technology and it then orchestrates the runtime where the embedded code is executed. The embedded code then omits this information, it is just pure code. In addition to libraries loaded from the file system, it is often possible to just specify the names and versions of desired libraries and the enclosing technology prepares these libraries using some package manager, e.g., pip in Python. In such case, the source code of the libraries is not available for analysis.
-\par
-Additionally, currently existing language scanners are designed to work with extracted source code/intermediate language. To facilitate dynamic runtime configurations, their interface needs to be modified so that it is possible to pass the information about the desired runtime even when the entire source code is not available. This is mainly important for the Python scanner which is currently dependent on receiving all source code.
-\par
-In general, it is difficult to estimate what properties need to be passed about runtime configuration for all technologies and languages. However, we don’t need to specify that in a general way. This information is only relevant for the parent technology where it is known what can and needs to be provided and the implementation of embedded code service for that particular language, which needs to prepare the input based on the configuration. Therefore, the configuration contract only needs to exist between these two components and all other components only need to read the source technology and the target programming language, so the contract can be highly customizable. Using polymorphism for runtime configuration seems like a good choice as it can provide both a type-safe and customizable interface.
+\begin{figure}[ht]\centering
+\includegraphics[width=1.0\textwidth]{img/Embedded code service base design.png}
+\caption{Diagram of Embedded Code Service workflow}
+\label{fig:ECSbasedesign}
+\end{figure}   
 
+\subsection{Orchestration}
+
+All contemporary programming languages use some form of import mechanism where the developers can import additional libraries and frameworks. We can see that in embedded code too, often there is a mechanism of adding external libraries to be imported and used by the code. For example in AWS Glue it is possible to define a job argument with a path of Amazon S3 object which contains a custom Python library. When AWS Glue executes a Python job, firstly it checks the S3 location and when it conforms to the required format, it copies the files to the internal working directory next to the job script. When a job is started, Python's import mechanism is able to find these additional libraries and successfully use them in the job script.
+\par
+Additionally, some technologies (e.g. SAS, Databricks) perform additional orchestration to run the embedded code correctly, such as injecting it in a well-defined class, so this envelope does not have to be written by the user every time, adding the desired imports and only then the embedded code is run on the execution engine used by that technology. This process has to be mimicked by Embedded Code Service before analyzing the code by the scanner to provide an equivalent of the actual code that is executed.
+\par
+The orchestration process would generally be different for each technology and programming language, but there are some common steps and some repeating patterns. This needs to be reflected in the design of orchestration so the part that needs to be implemented anew when support for new source technology is added is clearly distinguished from common parts. We can use \textit{template method} design pattern, which implements common parts of the process in the base class and lets subclasses redefine certain parts of it. That way we clearly define what can and needs to be implemented.
+
+\subsection{Result}
+
+When the analysis of embedded code is finished, the service shall return a result to source technology scanner. The result is a graph that needs to be merged with another graph and may contain pin nodes that need to be connected. Rather than returning the unfinished graph, we shall return an object that wraps it and provides an interface for connecting pin nodes and merging. The justification is simple, this graph is not always in a valid state so it should be obstructed from the plain view and modification.
+\par
+
+
+
+
+%%-subsection-%% 
 \subsection{Running the scanner for the embedded code without Manta Flow hooks}
-Similarly to the previous problem, this also involves the interface of programming language scanners. These are currently designed to be started by a Manta Flow scenario, responding to hooks. It is desired to modify this interface to enable starting the scanners from embedded code service. These modifications should not be big (the scanners are already quite well designed), but it is important to keep in mind that they need to be finished before a language scanner can be added to the embedded code service. 
+Similarly to the previous problem, this also involves the interface of programming language scanners. These are currently designed to be started by a Manta Flow scenario, responding to hooks. It is desired to modify this interface to enable starting the scanners from Embedded Code Service. These modifications should not be big (the scanners are already quite well designed), but it is important to keep in mind that they need to be finished before a language scanner can be added to the Embedded Code Service. 
 
-\subsection{Configuration of individual embedded code service components}
-The process of analyzing code consists of multiple steps, each performed by an individual component. First, there is input orchestration, then input analysis by Reader component and lastly, generating Manta Flow graph from intermediate language graph. So far, all language scanners use common dataflow generator. This could change for future languages, but so far all of them use it.
-\par
-To make all of this work, these components need to be correctly configured. Currently, the interaction between reader and dataflow generator is facilitated by Spring beans. There will also need to be new <language>EmbeddedCodeService components added for each scanner that implement the embedded code service interface for that particular language. These sub-components will then be injected to the EmbeddedCodeService component that will be available to other technology scanners using Spring. There are two possible ways to configure these sub-components:
-\begin{enumerate}
-    \item self-contained component that packages orchestration, reader and dataflow generator and implements a required interface, common parts can be implemented by an abstract superclass
-        \begin{figure}[ht]\centering
-        \includegraphics[width=1.0\textwidth]{img/Embedded code service base design 1.png}
-        \caption{Option 1}
-        \label{fig01:ECSbasedesign01}
-        \end{figure}    
-    \item a component that only handles orchestration and input preparation and then EmbeddedCodeService will pass the input to its own instances of reader and dataflow generator using well-defined interfaces
-        \begin{figure}[ht]\centering
-        \includegraphics[width=1.0\textwidth]{img/Embedded code service base design 2.png}
-        \caption{Option 2}
-        \label{fig01:ECSbasedesign02}
-        \end{figure}    
-\end{enumerate}
 
-The preferred option is the first one as it enables each language scanner to have a slightly different interface. This interface only needs to satisfy the needs of <language>EmbeddedCodeService component for that language. The scanners and languages differ in many details, this approach would provide some maneuvering space. The second option would allow the individual <language>EmbeddedCodeServices to be more lightweight since their only executive role is to perform orchestration, but would enforce strict interfaces for the language scanners.
 
-\subsection{Input for Bytecode and C\#}
-Usually, embedded code is available in plain text but Bytecode and C\# scanners expect compiled intermediate code on input. Currently, C\# scanner can compile the code itself, although it has some limitations. Bytecode scanners lacks this functionality entirely, so it would have to be added. 
-\par
-A prerequisite for a successful compilation is presence of all dependencies. That could prove to be a bigger problem than compilation itself as not always all dependencies are available and compiling unknown code can also cause some security issues.
-\par
-A small workaround could be to compile the embedded code using generated stubs. The compiler only requires the declarations to be available so that the correct call instructions can be generated. Since the scanners only analyze intermediate code, such code would be the same as if it was compiled with the original dependencies and it would be possible to perform the analysis in a standard way. The stubs could be generated using reflection from the original dependencies.
-\par
-This issue needs to be analyzed further before implementation as it is outside of the scope of this analysis.
 
-\subsection{Caching}
-It is also necessary to address the possibility of caching some intermediate data. It can be expected that multiple instances of embedded code can appear during one analysis (multiple scripts within parent technology analysis). These instances have a lot in common. Since they are embedded, they rely on some part of the environment to be provided by the parent technology and this part is often the same. It is therefore valid to consider if some parts can only be computed once and then cached and reused to improve performance.
-\par
-There is no universal answer and solution for that. There can be some small opportunities in particular cases but no general solutions. However, these particular cases should be reviewed for each language if they can bring some performance benefits.
-\par
-First opportunity is during input orchestration. As we mentioned earlier, part of the runtime is often the same, so when it is generated and prepared for the first time, it can be stored so it does not need to be generated again. It can be beneficial if this common runtime is considerably large compared to the size of embedded code and the duration of the analysis. For example, currently in Python scanner, parsing standard library which consists of ~2000 files takes longer than performing the analysis of a short script (<100 LOC). In a situation when there are tens or hundreds of such scripts, the improvement could save customer a lot of time. The standard library is available for each script, therefore it could be parsed once and reused. On the other hand, for Bytecode and C\# the input needs to be compiled, so each entry point has to be prepared individually.
-\par
-The other opportunity is during the analysis. Since we often use the same dependencies, we could maybe cache some intermediate results when analyzing flows in them. However, this optimization is already implemented within the scanners themselves. They use plugins for libraries that mimic the propagation of data flows in library functions and methods, so essentially, no library code is analyzed. Additionally, the execution of the worklist algorithm used for static analysis of the code is highly dependent on the inputs, so it behaves differently for each entry point and therefore there are no shared data between two entry points.
-\par
-In conclusion, when implementing a new combination of technology-language in embedded code service, it is advised to review the possibility of caching a part of input preparation as it can influence the overall performance of the parent technology.
 
 
 %%----- SECTION -----%% Analysis of Python scanner w.r.t. Embedded Code service

@@ -33,11 +33,11 @@ How can data lineage analysis of embedded code help the customer? The pipeline c
 
 \section{Requirements from Manta}
 
-As this work has been assigned by and developed in cooperation with Manta Tools company which develops Manta Flow, they have set certain requirements that the final solution should fulfill. In this section we will first, state a requirement and then we will follow-up with a discussion about its motivation and implications.
+As this work has been assigned by and developed in cooperation with Manta Tools company which develops Manta Flow, they have set certain requirements that the final solution should fulfill. In this section we will first, state a requirement and then we will follow-up with a discussion about its motivation and implications. We will also use a new term \textit{source technology}. In the context of embedded code analysis, the source technology is the data technology that uses embedded code. In the previous example, the source technology is AWS Glue which uses Python embedded code.
 
 \subsection{Functional requirements}
 
-These requirements define what the solution nedds to and needs not to do.
+These requirements define what the solution needs to and needs not to do.
 
 \subsubsection{Embedded code analysis}
 
@@ -53,7 +53,7 @@ The last part of this requirement describes that the service shall perform data 
 
 \textit{The service can merge the lineage graph with the lineage graph of parent data technology when provided a node to be merged with}. This requirement extends the previous one and describes what is to be done with the output.
 \par
-Each scanner produces one Manta graph for one input. When it uses a service to process a part of the input, which creates other graphs, they need to be merged. The merge operation is not a trivial process, so it shall be the responsibility of the service to implement it. The benefits are easy to see, no need to implement it each time the service is used across different scanners, which improves maintainability of the solution and also there is no need to understand it outside of the service. The developers may simply use the service interface to merge the results.
+Each scanner produces one Manta graph for one input. When it uses a service to process a part of the input, which creates other graphs, they need to be merged. Furthermore, edges can be created only between nodes present in the graph, so if there is a data flow between the objects in the source technology graph and objects in embedded code graph, they need to be merged into one so that the edge representing the data flow can be added. The merge operation is not a trivial process, so it shall be the responsibility of the service to implement it. The benefits are easy to see, no need to implement it each time the service is used across different scanners, which improves maintainability of the solution and also there is no need to understand it outside of the service. The developers may simply use the service interface to merge the results.
 
 \subsubsection{Multi-purpose service}
 
@@ -69,7 +69,7 @@ On top of the definition of functionality of the solution, there are also some r
 
 \subsubsection{Extendibility}
 
-\textit{Extending supported data technologies should be simple, adding a new technology should only include collecting its configuration in the technology scanner and implementing this configuration in embedded code service}. It is expected that the list of the scanners that use the service will grow in time based on customer requirements and available development capacity. The service shall be designed in a way that promotes extendibility so that the effort required to add support for new data technology is minimised. This can be done by splitting the code base to a common and a specific part so that it is obvious what needs to be added or modified in order to extend the service.
+\textit{Extending supported data technologies should be simple, adding a new technology should only include collecting its configuration in the technology scanner and implementing this configuration in Embedded Code Service}. It is expected that the list of the scanners that use the service will grow in time based on customer requirements and available development capacity. The service shall be designed in a way that promotes extendibility so that the effort required to add support for new data technology is minimised. This can be done by splitting the code base to a common and a specific part so that it is obvious what needs to be added or modified in order to extend the service.
 
 \subsubsection{Code reuse}
 
@@ -121,8 +121,6 @@ Microsoft SQL Server enables users to implement stored procedures, triggers, use
 
 \subsubsection{SQL Server Integration Services (SSIS)}
 SSIS is a platform for data integration and transformation solutions. It provides graphical tools for building ETL workflows, but it is also possible to create custom objects programmatically in C\# or Visual Basic. These include tasks, connection managers, log providers, enumerators and data flow components. Implementations of custom objects are expected to extend one of the base classes provided by SSIS, to override required methods and to use proper attributes. These objects are then distributed as a compiled class library. This is a similar approach as that of MSSQL~\cite{ssis}.
-\par
-In an example shown in figure~\ref{fig:cSharpScript}, a script component is defined as a class which inherits from the \texttt{UserComponent} base class provided by SSIS. The \texttt{CreateNewOutputRows} method is overridden to implement the desired logic. Within it we can access the input column values using the \texttt{Variables} object, which provides access to the input columns. In this example, the value of the first input column (MyInputColumn) is retrieved and stored in the \texttt{inputColumnValue} variable. Next, a transformation is performed on the input column value (in this case, converting it to uppercase), and the result is stored in the \texttt{outputColumnValue} variable. Finally, a new output row is added using the \texttt{OutputBuffer} object, and the transformed value is assigned to the output column (MyOutputColumn).
 
 \begin{figure}[ht]
 \begin{lstlisting}[language=csh]
@@ -156,8 +154,8 @@ public class ScriptMain : UserComponent
 \label{fig:cSharpScript}
 \end{figure}
 
-\subsubsection{PostgreSQL}
-By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness~\cite{postgresql}.
+\par
+In an example shown in figure~\ref{fig:cSharpScript}, a script component is defined as a class which inherits from the \texttt{UserComponent} base class provided by SSIS. The \texttt{CreateNewOutputRows} method is overridden to implement the desired logic. Within it we can access the input column values using the \texttt{Variables} object, which provides access to the input columns. In this example, the value of the first input column (\texttt{MyInputColumn}) is retrieved and stored in the \texttt{inputColumnValue} variable. Next, a transformation is performed on the input column value (in this case, converting it to uppercase), and the result is stored in the \texttt{outputColumnValue} variable. Finally, a new output row is added using the \texttt{OutputBuffer} object, and the transformed value is assigned to the output column (\texttt{MyOutputColumn}).
 
 \subsubsection{Snowflake}
 Snowflake Data Cloud is a cloud-based data storage and analytics service. It is common to use SQL to interact with data in Snowflake and embedded code is integrated in a similar way in the form of functions and stored procedures. Apart from SQL, these can be written in multiple programming languages - Java, Scala, JavaScript or Python. Each language used has (slightly) different capabilities and requirements. In case of JavaScript, it can be used to execute SQL statements and interact with the result to provide a return value. Java, Scala and Python scripts have to contain a function or a method with the first argument of type \texttt{Session} from Snowflake's Snowpark library. This argument will be populated by Snowflake when the procedure/function is invoked and is used for interaction with Snowflake platform~\cite{snowflake}.
@@ -262,6 +260,9 @@ glueContext.write_dynamic_frame.from_options(frame = result, connection_type = "
 \label{fig:embeddedScript}
 \end{figure}
 
+\subsubsection{PostgreSQL}
+By default, PostgreSQL supports functions written in C, but theoretically users may use any language, as long as it can be made compatible with C, e.g. C++. However, that is often difficult due to different calling conventions, so its safe to assume C language is used. The function definitions are supposed to use macros from \texttt{postgres.h} header file, but otherwise are common C functions. The code is compiled and dynamically loaded into the environment using SQL. There is currently no plan to support analyzing C language, so this data technology is mentioned only for completeness and to illustrate that there are also other ways~\cite{postgresql}.
+
 \subsubsection{Other data technologies}
 Besides the data technologies already described, there are others that provide embedded code integration and are supported in Manta Flow. These follow similar principles as some that were already described before, so we will not cover them in detail. However, we list them below for completeness:
 \begin{itemize}
@@ -274,7 +275,7 @@ Besides the data technologies already described, there are others that provide e
 \end{itemize}
 
 \subsection{Embedded code usage philosophy}
-Based on the description of embedded code usages, we can observe a few repeating patterns. These will help us design embedded code service.
+Based on the description of embedded code usages, we can observe a few repeating patterns. These will help us design Embedded Code Service.
 \par
 We can see that database systems use embedded code in the form of user-defined functions or stored procedures. They can then be invoked as a part of an SQL query or an SQL script. They often return a value and may receive arguments.
 \par
@@ -286,6 +287,62 @@ In compiled static-typed languages (Java and C\#), it is common to tag the class
 \par
 As Python is interpreted and not compiled, it is possible to inject the embedded code into a different code to create a new script. That allows use-cases where some code is executed before embedded code which defines some variables, functions, classes etc. The embedded code may then directly read these identifiers without having to declare them, which is used to provide interface for interacting with data technology. To successfully analyze such approach, it is important to understand and simulate these assignments.
 
+%%----- SECTION -----%% 
+\section{Embedded Code Service analysis}
 
+Based on the requirements set by Manta Tools and the analysis of data technologies that use embedded code, we are going to focus on the analysis of problems related to the implementation of Embedded Code Service in a more specific manner in this chapter.
+\par
+Let us first summarize what we have learned so far. Embedded Code Service is responsible for analyzing data lineage in code embedded in various data technologies and merging its lineage graph to that of the source technology. Similarly to Dataflow Query Service, it enables merging of data lineage of two cooperating technologies into one graph utilizing the existence of separate scanners for each of the respective technologies. It provides a way to compose a more complete lineage for the given technology without the need to implement the specifics of analyzing the embedded code within the source technology scanner.
+\par
+We have mentioned the similarity to Dataflow Query Service so many times that we finally need to explain why analysis of embedded code is not handled by it. They both analyze some form of embedded scripts. It would be possible to modify it for such use-case, but it would not be practical for several reasons.
+\par
+Firstly, the scenarios when they are used are different. Dataflow Query Service is used to analyze queries without requiring much information about them. When a query is used outside of a database, it is not always easy to detect what kind of database is being queried. Dataflow Query Service polls every scanner to decide if it can process the query and lets the first one that answers positively to do so, so this logic does not need to be implemented each time the service is used. When analyzing embedded code, this information is always known so there is no need for such process.
+\par
+Secondly, the interfaces of the services do not overlap. To analyze a script, Dataflow Query Service requires connection details whereas Embedded Code Service requires a configuration object. Furthermore, interface of Dataflow Query Service contains a lot of methods used to deduce database objects. That is not needed or wanted in case of embedded code.
+\par
+Due to these two reasons a decision was made to create a new service for the analysis of embedded code. Having only one would not be practical and would not bring any reasonable benefits. However, that does not mean that they have to be completely different. There are a few great solution in Dataflow Query Service that we can use so that we do not reinvent the wheel. There are quite a few more problems that we need to address before we can move on with design and implementation. Here is the list for an overview:
+\begin{enumerate}
+    \item Merging embedded code graph to the enclosing technology graph
+    \item Specifying runtime configuration - available libraries etc.
+    \item Caching
+\end{enumerate}
+Let us now take a closer look at each of them.
 
+%%-subsection-%% 
+\subsection{Merging embedded code graph with the source technology graph}
+The graphs contain a set of nodes and a set of edges between them. When two graphs are merged, the easy part is copying the nodes and edges from one graph to the other. Sometimes, embedded code uses data or data source originating from the pipeline in the source technology. We have already shown that in SSIS example in figure~\ref{fig:cSharpScript}. In the example code, the function reads the input dataset and writes data to the output dataset. To create a complete lineage, when merging two graphs we also need to correctly map the equivalent nodes present in the embedded code graph to those of the source technology graph. This is the difficult part of merging two graphs.
+\par
+The problem is that there is not always enough information in embedded code to resolve the input or the output. In the example, the exact structure or origin of the input dataset is not known, we only know that it contains a\texttt{MyInputColumn} column. Similarly, we only know that the output dataset has a \texttt{MyOutputColumn} column. We can easily create the column nodes from this information and connect them with an edge respecting the data flow, but the column nodes cannot exist on their own, they need to be assigned a parent node that represents the dataset. A naive solution would be to add specific nodes representing input and output datasets of SSIS script transformation and assign them as the parents of column nodes. In source technology we could locate such nodes in embedded code graph and merge them with their equivalent (essentially, moving all edges from old node to the new node by changing edge starting or ending points). This approach would work, but is too specific. The programming language scanner needs to create specific nodes for each source technology endpoint, each source technology has to locate specific nodes and with each extension a lot of new code has to be added into both scanners. We would prefer a more generic approach.
+\par
+Dataflow Query Service introduces a concept of \textit{pin nodes} which is described in section~\ref{section:DQS}. This concept is well-suited to be also used in our service, although with a couple of modifications. All nodes created in a query are a part of the query so pin nodes serve only as external connection points which may or may not be used. In embedded code, we would like to use them as placeholders for nodes we do not know but we know they exist, so we can connect an edge to them. These nodes could be created by a programming language scanner when it processes a data flow with unknown origin. This would alleviate the struggle to create a new type of node for a new source technology endpoint, because a generic pin node will be created each time. We have to make sure we do not create two identical pin nodes for different connection points. Pin nodes can be distinguished by their name (each node in a graph must have a name) and they only exist until the embedded code graph is merged, so they only need to be unique while embedded code is analyzed which can easily be checked by the scanner.
+\par
+We have solved creation of data flows between nodes with unknown origin in embedded code, but we still need to find out how we can connect source technology graph to correct pin nodes. A naive solution could encode pin node details into its name, for example \texttt{SSIS\_PIN\_NODE\_SCRIPT\_COMPONENT\_INPUT\_DATASET\_MyInputColumn\_COLUMN}. A source technology could enumerate all pin nodes that need to be mapped, decode their names and connect them with their equivalents. This is a feasible solution, but it lacks a bit of finesse, because serializing and deserializing information into strings is a tedious process.
+\begin{figure}[ht]\centering
+\includegraphics[width=1.0\textwidth]{img/pin_nodes_ecs.png}
+\caption{A diagram of the pin node mapping process in Embedded Code Service}
+\label{fig:pinNodesECS}
+\end{figure} 
+\par
+What if instead we could pass some information about the input to a programming language scanner and also retrieve some information from its execution after it ends? Such mechanism would help create a more precise graph for embedded code, because it would provide the scanner with a better contextual information, but it would also allow us to pass information about the created pin nodes without having to serialize it in their names. This mechanism requires changes to be made in programming language scanners which we would like to avoid if we can, but it turns out that such mechanism can bring great benefits. The mechanism is called \textit{Insight and Outsight} and was developed by other developers outside of the scope of this thesis. We shall describe it in more detail later when we discuss design and implementation. For now we only need to know that the information about created pin nodes is passed to the source technology in an \textit{Insight} which is used to easily map them.
+\par
+The mapping process is depicted in figure~\ref{fig:pinNodesECS}. Code shown in figure~\ref{fig:cSharpScript} was used for this diahram. It shows how the embedded code graph would look like when pin nodes are involved, how they are mapped using an \textit{Insight} and the result after contracting pin nodes.
 
+%%-subsection-%% 
+\subsection{Specifying runtime configuration}
+When embedded code is executed in source technology, the technology prepares the runtime environment in which it executes the code. This environment can often be configured by the user at which point it is necessary to propagate this information to the scanner. More importantly, some data technologies allow specifying other libraries to be included at runtime (AWS Glue, Databricks). The embedded code does not contain these libraries, they are managed by the source technology, but they can be imported and used which requires them to be included in the analysis. It means that Extractor for source technology needs to extract these libraries and they need to be provided to Embedded Code Service in configuration as well as values of configurable properties.
+\par
+Currently, programming language scanners are expecting that all analyzed code is present in one directory after the extraction. Because there may be additional files included in configuration that need to be analyzed, the service needs to perform \textit{input orchestration}. The goal of input orchestration is to organize the files in input directory as they would be organized in runtime environment of source technology. Extractor of the programming language scanner can then use the input orchestrated in this way to produce an input for Reader. When orchestrated successfully, Reader would not be able to recognize any difference and would be able to analyze the code correctly.
+\par
+In general, it is difficult to estimate what properties need to be passed about runtime configuration for all technologies and languages. Furthermore, it is also not possible to to perform the orchestration in a general way due to the differences of each source technology. However, we don’t need to specify that in a general way. This information is only relevant for the source technology which needs to prepare the configuration, because it knows what can and needs to be provided. Embedded Code Service does not need to know the details outside input orchestration, which will be different for each data technology. Therefore, the configuration contract only needs to exist between source technology and input orchestration component, so it can be highly customizable. Using polymorphism for runtime configuration seems like a good choice as it can provide both a type-safe and customizable interface.
+
+%%-subsection-%% 
+\subsection{Caching}
+It is also necessary to address the possibility of caching some intermediate data. It can be expected that multiple instances of embedded code can appear during one analysis (multiple scripts within source technology analysis). These instances have a lot in common. Since they are embedded, they rely on some part of the environment to be provided by the source technology and this part is often the same. It is therefore valid to consider if some analysis parts can only be computed once and then cached and reused to improve performance. 
+\par
+Sadly, we were not able to find a universal answer and solution that can be implemented by Embedded Code Service. There can be some small opportunities in particular cases but we have not found a general solutions. However, these particular cases should be reviewed for each programming language scanner to see whether they can bring valuable performance benefits.
+\par
+First opportunity is during input orchestration. As we mentioned earlier, part of the runtime is often the same, so when it is generated and prepared for the first time, it can be stored so it does not need to be generated again. It can be beneficial if this common runtime is considerably large compared to the size of embedded code and the duration of the analysis. For example, currently in Python scanner, parsing standard library which consists of ~2000 files takes longer than performing the analysis of a short script (<100 LOC). In a situation when there are tens or hundreds of such scripts, the improvement could save customer a lot of time. The standard library is available for each script, therefore it could be parsed once and reused. On the other hand, for Bytecode and C\# the input needs to be compiled, so each entry point has to be prepared individually.
+\par
+The other reviewed opportunity is during the analysis. Since we often use the same dependencies, we could cache some intermediate results when analyzing flows in them. However, this optimization is already implemented within the scanners themselves. They use plugins for libraries that mimic the propagation of data flows in library functions and methods, so essentially, no library code is analyzed. Additionally, the execution of the worklist algorithm used for static analysis of the code is highly dependent on the inputs, so it behaves differently for each entry point and therefore there are no shared data between two entry points.
+\par
+In conclusion, when implementing a new combination of technology-language in Embedded Code Service, it is advised to review the possibility of caching a part of input preparation as it can influence the overall performance of the source technology scanner. This recommendation will be a part of guidelines for implementing input orchestration for a new source technology.
