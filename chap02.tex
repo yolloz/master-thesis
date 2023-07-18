@@ -81,6 +81,7 @@ On top of the definition of functionality of the solution, there are also some r
 
 %%----- SECTION -----%%
 \section{Source technology analysis}
+\label{sec:sourceTechnologyAnalysis}
 
 Before we dive further into the analysis, we need to examine which source data technologies, whether currently supported by Manta Flow or planned, support embedded code. Limiting to these technologies is driven by business requirements, it does not make sense to support analysis of embedded code in a data technology that is not used by any current or prospective customer. This overview will give us a better understanding of the range of embedded code use-cases, their similarities and differences.
 
@@ -310,6 +311,7 @@ Let us now take a closer look at each of them.
 
 %%-subsection-%% 
 \subsection{Merging embedded code graph with the source technology graph}
+\label{sec:pin}
 The graphs contain a set of nodes and a set of edges between them. When two graphs are merged, the easy part is copying the nodes and edges from one graph to the other. Sometimes, embedded code uses data or data source originating from the pipeline in the source technology. We have already shown that in SSIS example in Figure~\ref{fig:cSharpScript}. In the example code, the function reads the input dataset and writes data to the output dataset. To create a complete lineage, when merging two graphs we also need to correctly map the equivalent nodes present in the embedded code graph to those of the source technology graph. This is the difficult part of merging two graphs.
 \par
 The problem is that there is not always enough information in embedded code to resolve the input or the output. In the example, the exact structure or origin of the input dataset is not known, we only know that it contains a\texttt{MyInputColumn} column. Similarly, we only know that the output dataset has a \texttt{MyOutputColumn} column. We can easily create the column nodes from this information and connect them with an edge respecting the data flow, but the column nodes cannot exist on their own, they need to be assigned a parent node that represents the dataset. A naive solution would be to add specific nodes representing input and output datasets of SSIS script transformation and assign them as the parents of column nodes. In source technology we could locate such nodes in embedded code graph and merge them with their equivalent (essentially, moving all edges from old node to the new node by changing edge starting or ending points). This approach would work, but is too specific. The programming language scanner needs to create specific nodes for each source technology endpoint, each source technology has to locate specific nodes and with each extension a lot of new code has to be added into both scanners. We would prefer a more generic approach.
