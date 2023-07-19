@@ -161,17 +161,22 @@
 % An optional dedication: you can thank whomever you wish (your supervisor,
 % consultant, a person who lent the software, etc.)
 \def\Dedication{%
-Dedication.
+This way I would like to thank my supervisor,  doc. RNDr. Pavel Parízek, for his guidance, help and motivation while working on this thesis.\\
+Thanks should also go to RNDr. Lukáš Hermann for his invaluable assistance regarding
+MANTA Flow platform and mentorship.\\
+I am especially grateful to my fiancée, Kristýna, who has shown her never-ending support and love throughout my studies that helped me get this far.\\
+Last but not least, I want to thank my family and my cats for always providing comfort when I needed it.
 }
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-Abstract.
+Data integration tools often use embedded code for data manipulation tasks. Popular examples of such tools include AWS Glue data integration service, Databricks platform, Snowflake data cloud or SQL Server Integration Services (SSIS). Embedded code is typically written in programming languages such as Python, Java, C\# or JavaScript. Manta Flow is an automated platform that can analyze data lineage in database models, data pipelines of data integration tools, and in application source code, but it lacks the ability to analyze embedded code.\\
+In this work, we analyzed potential ways to extend the capabilities of Manta Flow with the ability to analyze data lineage in embedded code. We created a general design of a reusable Embedded Code Service that leverages the existing potential of data flow analysis of source code, and uses it to analyze embedded code. We implemented a specialization of this service for the Python programming language, and to demonstrate its usefulness, we designed and implemented a prototype of data lineage scanner for AWS Glue data integration service. This scanner extensively uses the service to analyze data lineage in embedded Python scripts.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
 \def\Keywords{%
-{key} {words}
+{data lineage} {data flow} {embedded code} {python}
 }
 
 %% The hyperref package for clickable links in PDF and also for storing
@@ -199,7 +204,6 @@ Abstract.
 \include{chap03}
 \include{chap04}
 \include{chap05}
-
 \include{epilog}
 
 %%% Bibliography
@@ -207,7 +211,7 @@ Abstract.
 \printbibliography
 
 %%% Figures used in the thesis (consider if this is needed)
-%\listoffigures
+\listoffigures
 
 %%% Tables used in the thesis (consider if this is needed)
 %%% In mathematical theses, it could be better to move the list of tables to the beginning of the thesis.
@@ -231,7 +235,31 @@ Abstract.
 \appendix
 \chapter{Attachments}
 
-\section{First Attachment}
+\section{User Documentation}
+
+To run metadata extraction and data flow analysis of AWS Glue scanner, you are required to have a computer with:
+\begin{itemize}
+    \item runtime environment for Java 11 or newer installed,
+    \item Manta Flow, version R40 or newer installed and configured.
+\end{itemize}
+Manta Flow requires a license to be successfully configured. Licenses are available only to Manta customers and developers, which might be a problem for the reader.
+\par
+The installer for Manta Flow contains a wizard for its configuration. After the installation is successfully finished, Manta Flow can be launched.
+\par
+After logging into Manta Flow Admin UI, it is necessary to create AWS Glue connection, which is listed under Data Integration tools. The connection needs to be named uniquely and requires AWS Glue credentials. The user needs to generate programmatic credentials for the AWS user credentials that will be used to access AWS Glue. It is also possible to specify a regular expression which defines which ETL jobs shall be analyzed.
+\par
+With connection set up, we need to create a workflow for extraction analysis. In process manager, create a new workflow and drag Extraction and Analysis into the workflow. They should contain your AWS Glue connection. When the workflow is created, execute it and watch the process manager to see when it completes.
+\par
+After the workflow finished, you may log into Manta Flow Viewer to visualize the analyzed data lineage. In the Viewer, select the latest revision and choose, which objects you would like to visualize. Then, click \textit{Visualize} button and explore the data lineage.
+
+\section{Contents of the Attachment}
+
+The list below describes the contents of the attachment:
+\begin{itemize}
+    \item The \textit{source-code} folder contains the source code developed within this work. There are only classes and other files produced in their entirety as a part of this work. Note that the source code of related Manta Flow components is not included. The source code is provided in the hierarchical structure as it appears in the development source code management tool.
+    \item The \textit{diff} folder contains two files in \textit{diff} format (format used to store differences between two files) that shows the changes that were made to files not included in the \textit{source-code} folder, but were a part of this work. The changes include the refactoring of Python scanner components for the purposes of integration with Embedded Code Service.
+    \item The \textit{tex-source} contains the source files used to generate PDF version of this text. It contains the original version of the diagrams and pictures shown in figures in this work. Should any of them be difficult to read, you can examine them in better resolution.
+\end{itemize}
 
 \openright
 \end{document}

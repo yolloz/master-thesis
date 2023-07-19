@@ -60,16 +60,16 @@ Other specific tasks include a proof-of-concept implementation of a metadata ext
 Let us define a few important terms that are often used in this work.
 %% TODO
 \begin{itemize}
-    \item \textit{Data flow}
-    \item \textit{Data lineage} is the process of mapping data flows     
-    \item Manta Flow
-    \item Manta scanner
-    \item We will use the term \textit{data technology} to uniformly reference databases, ETL and reporting tools. This term shall simplify naming all systems, frameworks, platforms and tools that can be used for data processing and management in the work.
-    \item Embedded code
-    \item Metadata
+    \item \textit{Data flow} refers to the path and direction of data movement, capturing the sequence of transformations and processing steps that data undergoes throughout its lifecycle.
+    \item \textit{Data lineage} is the record of the origin, transformations, and movement of data, providing a clear and traceable path from its source through various processes and systems to its destination.
+    \item \textit{Manta Flow} is a state-ot-the-art automated data lineage analysis platform.
+    \item We will use the term \textit{data technology} to uniformly reference databases, ETL and reporting tools. This term shall simplify naming all systems, frameworks, platforms and tools that can be used for data processing and management in the work.    
+    \item \textit{Manta scanner} is a component of Manta Flow specialized to perform data lineage analysis for one data technology.
+    \item \textit{Embedded code} is a piece of code (a script, a class, a package) embedded in a data technology that is executed in a specific runtime environment to perform a specific task.
+    \item \textit{Metadata} refers to descriptive and contextual information about data, encompassing details such as data source, format, structure, meaning, and other attributes.
     \item In the context of embedded code analysis, the \textbf{source technology} is the data technology that uses embedded code, or from a different point of view, a data technology that is the source of embedded code.
 \end{itemize}
 
 \section{Outline}
 
-This thesis is split into several chapters. In introduction we briefly describe the motivation and the goal of the thesis. In the second chapter we describe important aspects of MANTA Flow platform with which the service developed in this thesis is integrated. Chapter 3 is dedicated to a detailed problem analysis and we formulate our requirements there. Chapter 4 delves into design and implementation of embedded code service and changes that were made to Python scanner. In chapter 5 we take a look at the design and proof-of-concept implementation of AWS Glue scanner, which uses embedded code service for data flow analysis of embedded Python code. In chapter 6 we demonstrate the functionality of implemented features on several examples and discuss the limitations of the implementation. Finally, in conclusion we sum up what we achieved in this work and how we did it.
+This thesis is split into several chapters. In introduction we briefly describe the motivation and the goal of the thesis. In the second chapter we describe important aspects of MANTA Flow platform with which the service developed in this thesis is integrated in. Chapter 3 is dedicated to a detailed problem analysis and we formulate our requirements there. Chapter 4 delves into design and implementation of embedded code service and changes that were made to Python scanner. In chapter 5 we take a look at the design and proof-of-concept implementation of AWS Glue scanner, which uses Embedded Code Service for data flow analysis of embedded Python code. In chapter 6 we demonstrate the functionality of implemented features on several examples and discuss the limitations of the implementation. Finally, in conclusion we sum up what we achieved in this work and how we did it.
