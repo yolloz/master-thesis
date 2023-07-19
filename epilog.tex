@@ -1,6 +1,6 @@
 \chapter{Conclusion}
 
-In this work, we have managed to successfully develop Python Embedded Code Service for data flow analysis of embedded Python code as well as a prototype of AWS Glue scanner, which uses this service to analyze ETL job scripts. The scanner is fully integrated in Manta Flow production deployment.
+In this work, we managed to successfully develop Python Embedded Code Service for data flow analysis of embedded Python code as well as a prototype of AWS Glue scanner, which uses this service to analyze ETL job scripts. The scanner is fully integrated in Manta Flow production deployment.
 \par
 The service currently supports only AWS Glue, but can easily be extended to support other data technologies by implementing specific orchestration process for that technology. The analysis of embedded code is currently limited to Python code, but we have explained clear steps and necessary changes that need to be made to scanners and the service in order to support a different programming language in the future.
 \par
@@ -10,4 +10,4 @@ We have extended Python scanner with a basic implementation of the plugin for an
 \par
 In the last chapter we have shown that AWS Glue scanner is able to successfully analyze embedded code using Python Embedded Code Service to create a data lineage graph for AWS Glue, internally employing Python scanner for data flow analysis.
 \par
-The future development should focus on finishing unimplemented features in AWS Glue scanner to make it a full-fledged scanner and to optimize Python scanner along with Embedded Code Service to be more effective in analysis of embedded code.
+The future development should focus on finishing the unimplemented features in AWS Glue scanner to make it a full-fledged scanner and to optimize Python scanner along with Embedded Code Service to be more effective in analysis of embedded code.
